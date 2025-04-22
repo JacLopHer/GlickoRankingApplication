@@ -1,20 +1,20 @@
 package com.example.GlickoRankingApplication.model;
 
 import lombok.*;
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+
 @Builder
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Document(collection = "players")
 public class Player {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+    private String id;
     private String name;
 
     private double rating = 1500;       // μ
@@ -23,11 +23,6 @@ public class Player {
 
     private LocalDateTime lastMatchDate;
 
-    @PrePersist
-    @PreUpdate
-    public void updateTimestamp() {
-        this.lastMatchDate = LocalDateTime.now();
-    }
 
     public Player(String name){
         if(name == null || name.trim().isBlank()){

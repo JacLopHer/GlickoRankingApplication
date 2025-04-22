@@ -17,11 +17,13 @@ public class PlayerService {
     }
 
     public List<Player> createPlayers(CreatePlayersRequest request) {
-        List<Player> players = request.players().stream()
+        List<Player> toSave = request.players().stream()
                 .map(p -> new Player(p.name()))
                 .toList();
-
-        return playerRepository.saveAll(players);
+        for (Player p : toSave) {
+            playerRepository.save(p);
+        }
+        return toSave;
     }
 
     public List<Player> getAllPlayers() {

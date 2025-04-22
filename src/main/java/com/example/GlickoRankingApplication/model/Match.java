@@ -1,31 +1,29 @@
 package com.example.GlickoRankingApplication.model;
 
-import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
-@Entity
+
+@Document(collection = "matches")
+@Builder
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class Match {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @ManyToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
-    @JoinColumn(name = "player_a_id", nullable = false)
     private Player playerA;
-
-    @ManyToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
-    @JoinColumn(name = "player_b_id", nullable = false)
     private Player playerB;
 
-    // 1 = A gana, 0 = B gana, 0.5 = empate
+    // 1 = A win, 0 = B lost, 0.5 = draw
     private double result;
 
     private LocalDateTime date;
+
+
 }
