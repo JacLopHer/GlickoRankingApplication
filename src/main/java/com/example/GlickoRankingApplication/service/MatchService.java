@@ -7,6 +7,7 @@ import com.example.GlickoRankingApplication.model.Match;
 import com.example.GlickoRankingApplication.model.Player;
 import com.example.GlickoRankingApplication.repository.MatchRepository;
 import com.example.GlickoRankingApplication.repository.PlayerRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@Slf4j
 public class MatchService {
 
     @Autowired
@@ -29,6 +31,7 @@ public class MatchService {
 
     public void recordMatch(MatchDTO matchDTO) {
         // Encontrar jugadores en la base de datos
+        log.info("Start recording match between : {} vs {}", matchDTO.playerAId(), matchDTO.playerBId());
         Player playerA = playerRepository.findById(matchDTO.playerAId())
                 .orElseThrow(() -> new PlayerNotFoundException(matchDTO.playerAId() + "not found"));
         Player playerB = playerRepository.findById(matchDTO.playerBId())
@@ -42,18 +45,20 @@ public class MatchService {
                 .date(LocalDateTime.now())// 1 = A gana, 0 = B gana, 0.5 = empate
                 .build();
         // Guardar el match en la base de datos
+        log.info("Saving match {} vs {}:", match.getPlayerA().getName(), match.getPlayerB().getName() );
         matchRepository.save(match);
 
         // Actualizar ratings de los jugadores
         glickoRatingService.updateRatings(playerA, playerB, matchDTO.result());
+        log.info("Updating ratings for both players");
         playerRepository.save(playerA);
         playerRepository.save(playerB);
-
+        log.info("Match successfully recorded");
     }
 
     public void bulkMatches(List<MatchDTO> matchDTOS){
         List<String> failedMatches = new ArrayList<>();
-
+        log.info("Starting to bulk matches : {}", (long) matchDTOS.size());
         matchDTOS.forEach(match -> {
             try {
                 recordMatch(match);
@@ -65,9 +70,9 @@ public class MatchService {
 
         if (!failedMatches.isEmpty()) {
             // Puedes decidir cómo manejar los fallos: retornar un mensaje, guardar en log, etc.
-            System.out.println("Some matches failed to process: " + String.join(", ", failedMatches));
+            log.info("Some matches failed to process: " + String.join(", ", failedMatches));
         } else {
-            System.out.println("All matches processed successfully.");
+            log.info("All matches processed successfully.");
         }
     }
 

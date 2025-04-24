@@ -1,9 +1,14 @@
 package com.example.GlickoRankingApplication.service;
 
 import com.example.GlickoRankingApplication.model.Player;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+
 @Service
+@Slf4j
 public class GlickoRatingService {
     // Constantes del sistema Glicko-2
     private static final double TAU = 0.5;
@@ -22,6 +27,10 @@ public class GlickoRatingService {
     }
 
     public void updateRatings(Player player, Player opponent, double score) {
+        log.info("Starting to update ratings for game between : {} vs {}", player.getName(), opponent.getName());
+        //Aplicar decay
+        applyRatingDecay(player);
+        applyRatingDecay(opponent);
         // Conversión inicial
         double mu = (player.getRating() - DEFAULT_RATING) / SCALE;
         double phi = player.getRd() / SCALE;
@@ -115,12 +124,16 @@ public class GlickoRatingService {
         sigmaPrime = Math.exp(A / 2);
         phiStar = Math.sqrt(phiB * phiB + sigmaPrime * sigmaPrime);
         phiPrime = 1.0 / Math.sqrt(1.0 / (phiStar * phiStar) + 1.0 / v);
-        muPrime = muB + phiPrime * phiPrime * g * (1 - score - E); // También invertimos el score para playerB
+        muPrime = muB + phiPrime * phiPrime * g * (1 - score - E);
 
         // Actualización final para opponent (playerB)
         opponent.setRating(muPrime * SCALE + DEFAULT_RATING);
         opponent.setRd(phiPrime * SCALE);
         opponent.setVolatility(sigmaPrime);
+
+        player.setLastMatchDate(LocalDateTime.now());
+        opponent.setLastMatchDate(LocalDateTime.now());
+        log.info("Ratings updated");
     }
 
     private double f(double x, double delta, double phi, double v, double a) {
@@ -128,5 +141,21 @@ public class GlickoRatingService {
         double num = ex * (delta * delta - phi * phi - v - ex);
         double den = 2.0 * Math.pow(phi * phi + v + ex, 2);
         return num / den - (x - a) / (TAU * TAU);
+    }
+
+    public void applyRatingDecay(Player player) {
+        if(player.getLastMatchDate() == null) {
+            player.setLastMatchDate(LocalDateTime.now());
+        }
+
+        long weeksInactive = ChronoUnit.WEEKS.between(player.getLastMatchDate(), LocalDateTime.now());
+        if (weeksInactive > 0) {
+            // RD se incrementa con la inactividad, límite máximo = DEFAULT_RD
+            double phi = player.getRd() / SCALE;
+            double newPhi = Math.sqrt(phi * phi + player.getVolatility() * player.getVolatility() * weeksInactive);
+            double newRD = Math.min(newPhi * SCALE, DEFAULT_RD); // No más de RD inicial
+
+            player.setRd(newRD);
+        }
     }
 }
