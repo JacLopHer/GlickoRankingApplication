@@ -1,5 +1,6 @@
 package com.example.GlickoRankingApplication.service;
 
+import com.example.GlickoRankingApplication.clients.BCPClient;
 import com.example.GlickoRankingApplication.dto.CreatePlayerRequest;
 import com.example.GlickoRankingApplication.dto.PlayerDTO;
 import com.example.GlickoRankingApplication.dto.PlayerJson;
@@ -15,14 +16,16 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class PlayerService {
     private final PlayerRepository playerRepository;
+    private final BCPClient bcpClient;
 
-    public PlayerService(PlayerRepository playerRepository) {
-        this.playerRepository = playerRepository;
+    public PlayerService(PlayerRepository playerRepository, BCPClient bcpClient) {
+        this.playerRepository = playerRepository; this.bcpClient = bcpClient;
     }
 
     public List<Player> createPlayers(List<CreatePlayerRequest> request) {
@@ -79,24 +82,34 @@ public class PlayerService {
         playerRepository.saveAll(players);
     }
 
-    public List<Player> createPlayersFromJson(List<PlayerJson> playersJson) {
-        playersJson = playersJson.stream().filter(player -> !playerRepository.existsById(player.getUserId())).toList();
+    // Método modificado para obtener jugadores desde BCPClient
+    public List<Player> createPlayersFromBCP(String eventId) {
+        // Recuperar los jugadores desde BCPClient
+        List<PlayerJson> playersJson = bcpClient.getPlayers(eventId);
+
+        // Filtrar jugadores que ya existen en la base de datos
+        playersJson = playersJson.stream()
+                .filter(player -> !playerRepository.existsById(player.getUser().getId()))
+                .toList();
 
         List<Player> toSave = playersJson.stream()
                 .map(p -> {
-                    // Extraemos el nombre completo y lo asignamos al nombre del jugador
+                    // Extraer el nombre completo y asignarlo al jugador
                     String fullName = p.getUser().getFirstName() + " " + p.getUser().getLastName();
                     Player player = new Player(fullName);
-                    player.setId(p.getUserId()); // Usamos userId como id
+                    player.setId(p.getUser().getId()); // Usamos userId como id
                     return player;
                 })
-                .toList();
-        log.info("Starting batch player creation from JSON : {}", (long) toSave.size());
-        for (Player p : toSave) {
+                .collect(Collectors.toList());
 
+        log.info("Starting batch player creation from BCP : {}", toSave.size());
+
+        // Guardar los jugadores en la base de datos
+        for (Player p : toSave) {
             log.info("Saving : {}", p.getName());
             playerRepository.save(p);
         }
+
         return toSave;
     }
 

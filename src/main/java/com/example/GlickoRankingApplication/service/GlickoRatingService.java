@@ -27,23 +27,39 @@ public class GlickoRatingService {
     }
 
     public void updateRatings(Player player, Player opponent, double score) {
-        log.info("Starting to update ratings for game between : {} vs {}", player.getName(), opponent.getName());
-        //Aplicar decay
-        applyRatingDecay(player);
-        applyRatingDecay(opponent);
+        log.info("Starting to update ratings for game between: {} vs {}", player.getName(), opponent.getName());
+
+        // Verificar si el jugador tiene una volatilidad. Si no la tiene, se usa el valor predeterminado.
+        if (player.getVolatility() == 0) {
+            player.setVolatility(DEFAULT_VOLATILITY);
+        }
+
+        // Verificar si el oponente tiene una volatilidad. Si no la tiene, se usa el valor predeterminado.
+        if (opponent.getVolatility() == 0) {
+            opponent.setVolatility(DEFAULT_VOLATILITY);
+        }
+
         // Conversión inicial
         double mu = (player.getRating() - DEFAULT_RATING) / SCALE;
         double phi = player.getRd() / SCALE;
-        double sigma = player.getVolatility();
+        double sigma = player.getVolatility(); // Usamos la volatilidad del jugador
 
         double mu_j = (opponent.getRating() - DEFAULT_RATING) / SCALE;
         double phi_j = opponent.getRd() / SCALE;
 
+        // Calcular g y E
         double g = g(phi_j);
         double E = E(mu, mu_j, phi_j);
+
+        log.info("g = {}, E = {}", g, E);
+
+        // Calcular v y delta
         double v = 1.0 / (g * g * E * (1 - E));
         double delta = v * g * (score - E);
 
+        log.info("v = {}, delta = {}", v, delta);
+
+        // Resolución para a, A, B, sigmaPrime, phiStar, etc.
         double a = Math.log(sigma * sigma);
         double A = a;
         double B;
@@ -97,7 +113,7 @@ public class GlickoRatingService {
         g = g(phi_jB);
         E = E(muB, mu_jB, phi_jB);
         v = 1.0 / (g * g * E * (1 - E));
-        delta = v * g * (1 - score); // El score invertido para el oponente
+        delta = v * g * (1 - score - E); // El score invertido para el oponente
 
         a = Math.log(sigmaB * sigmaB);
         A = a;
@@ -121,6 +137,8 @@ public class GlickoRatingService {
             fB = fC;
         }
 
+        log.info("Player {}: v = {}, delta = {}", player.getName(), v, delta);
+
         sigmaPrime = Math.exp(A / 2);
         phiStar = Math.sqrt(phiB * phiB + sigmaPrime * sigmaPrime);
         phiPrime = 1.0 / Math.sqrt(1.0 / (phiStar * phiStar) + 1.0 / v);
@@ -130,8 +148,10 @@ public class GlickoRatingService {
         opponent.setRating(muPrime * SCALE + DEFAULT_RATING);
         opponent.setRd(phiPrime * SCALE);
         opponent.setVolatility(sigmaPrime);
+
         player.setLastMatchDate(LocalDateTime.now());
         opponent.setLastMatchDate(LocalDateTime.now());
+
         log.info("Ratings updated");
     }
 

@@ -27,7 +27,7 @@ public class Player {
     private double rd = 350;           // φ
     private double volatility = 0.06;   // σ
 
-    private LocalDateTime lastMatchDate;
+    private LocalDateTime lastMatchDate = LocalDateTime.now();
     private int matchCount = 0;
 
 
