@@ -130,7 +130,6 @@ public class GlickoRatingService {
         opponent.setRating(muPrime * SCALE + DEFAULT_RATING);
         opponent.setRd(phiPrime * SCALE);
         opponent.setVolatility(sigmaPrime);
-
         player.setLastMatchDate(LocalDateTime.now());
         opponent.setLastMatchDate(LocalDateTime.now());
         log.info("Ratings updated");

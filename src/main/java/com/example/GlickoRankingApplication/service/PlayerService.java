@@ -1,15 +1,20 @@
 package com.example.GlickoRankingApplication.service;
 
 import com.example.GlickoRankingApplication.dto.CreatePlayerRequest;
+import com.example.GlickoRankingApplication.dto.PlayerDTO;
 import com.example.GlickoRankingApplication.dto.PlayerJson;
+import com.example.GlickoRankingApplication.enums.Faction;
 import com.example.GlickoRankingApplication.exceptions.PlayerNotFoundException;
+import com.example.GlickoRankingApplication.model.FactionPlayed;
 import com.example.GlickoRankingApplication.model.Player;
 import com.example.GlickoRankingApplication.repository.PlayerRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -32,8 +37,28 @@ public class PlayerService {
         return toSave;
     }
 
-    public List<Player> getAllPlayers() {
-        return playerRepository.findAll();
+    public List<PlayerDTO> getAllPlayers() {
+        List<Player> players = playerRepository.findAll();
+        List<PlayerDTO> playerDTOS = players.stream()
+                .map(player -> new PlayerDTO(player.getId(),player.getName(), player.getRating(), player.getFactionsPlayed() != null ? getMostPlayedFaction(player.getFactionsPlayed()).getDisplayName() : null, player.getMatchCount())).toList();
+        return playerDTOS;
+    }
+
+    private Faction getMostPlayedFaction(HashMap<Faction, FactionPlayed> factionsPlayed) {
+        Faction mostPlayedFaction = null;
+        int maxMatches = 0;
+
+        for (Map.Entry<Faction, FactionPlayed> entry : factionsPlayed.entrySet()) {
+            Faction faction = entry.getKey();
+            int matchesAmount = entry.getValue().getMatchesAmount();  // Asegúrate de tener un getter para matchesAmount en FactionPlayed
+
+            if (matchesAmount > maxMatches) {
+                maxMatches = matchesAmount;
+                mostPlayedFaction = faction;
+            }
+        }
+
+        return mostPlayedFaction;
     }
 
     public Player getPlayerByName(String name) {
@@ -77,5 +102,9 @@ public class PlayerService {
 
     private boolean shouldDecay(Player player) {
         return player.getLastMatchDate().isBefore(LocalDateTime.now().minusDays(30));
+    }
+
+    public void removeAllPlayers(){
+        playerRepository.deleteAll();
     }
 }

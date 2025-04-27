@@ -1,10 +1,13 @@
 package com.example.GlickoRankingApplication.service;
 
 import com.example.GlickoRankingApplication.dto.MatchDTO;
+import com.example.GlickoRankingApplication.enums.Faction;
 import com.example.GlickoRankingApplication.exceptions.MatchNotSavedException;
 import com.example.GlickoRankingApplication.exceptions.PlayerNotFoundException;
+import com.example.GlickoRankingApplication.model.FactionPlayed;
 import com.example.GlickoRankingApplication.model.Match;
 import com.example.GlickoRankingApplication.model.Player;
+import com.example.GlickoRankingApplication.repository.FactionPlayedRepository;
 import com.example.GlickoRankingApplication.repository.MatchRepository;
 import com.example.GlickoRankingApplication.repository.PlayerRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 @Service
@@ -31,6 +35,9 @@ public class MatchService {
     @Autowired
     private GlickoRatingService glickoRatingService;
 
+    @Autowired
+    private FactionPlayedRepository factionPlayedRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void recordMatch(MatchDTO matchDTO) {
@@ -40,6 +47,11 @@ public class MatchService {
                 .orElseThrow(() -> new PlayerNotFoundException(matchDTO.playerAId() + "not found"));
         Player playerB = playerRepository.findById(matchDTO.playerBId())
                 .orElseThrow(() -> new IllegalArgumentException(matchDTO.playerBId() + "not found"));
+
+
+        // Actualizar las listas de facciones jugadas para ambos jugadores
+        updateFactionPlayed(playerA, getFactionFromDisplay(matchDTO.playerAFaction()));
+        updateFactionPlayed(playerB, getFactionFromDisplay(matchDTO.playerBFaction()));
 
         // Crear el match
         Match match = Match.builder()
@@ -59,6 +71,32 @@ public class MatchService {
         playerRepository.save(playerB);
         log.info("Match successfully recorded");
     }
+
+    private Faction getFactionFromDisplay(String displayName){
+        for(Faction faction: Faction.values()){
+            if(faction.getDisplayName().equalsIgnoreCase(displayName)){
+                return faction;
+            }
+        }
+        throw new IllegalArgumentException("Faction not valid : " + displayName);
+    }
+
+    private void updateFactionPlayed(Player player, Faction faction) {
+        if (player.getFactionsPlayed() == null) {
+            player.setFactionsPlayed(new HashMap<>());
+        }
+
+        FactionPlayed factionPlayed = player.getFactionsPlayed().get(faction);
+
+        if (factionPlayed == null) {
+            factionPlayed = new FactionPlayed(player.getId(), faction, 1);
+        } else {
+            factionPlayed.setMatchesAmount(factionPlayed.getMatchesAmount() + 1);
+        }
+        player.setMatchCount(player.getMatchCount() + 1);
+        player.getFactionsPlayed().put(faction, factionPlayed);
+    }
+
 
     public void bulkMatches(List<MatchDTO> matchDTOS){
         List<String> failedMatches = new ArrayList<>();
@@ -98,6 +136,8 @@ public class MatchService {
                     String playerBId = pairing.get("player2").get("user").get("id").asText();
                     int playerAScore = pairing.get("player1Game").get("points").asInt();
                     int playerBScore = pairing.get("player2Game").get("points").asInt();
+                    String playerAFaction = pairing.get("player1").get("faction").asText();
+                    String playerBFaction = pairing.get("player2").get("faction").asText();
 
                     double result;
                     if (playerAScore > playerBScore) {
@@ -108,7 +148,7 @@ public class MatchService {
                         result = 0.5;
                     }
 
-                    matches.add(new MatchDTO(playerAId, playerBId, result));
+                    matches.add(new MatchDTO(playerAId, playerBId, result, playerAFaction, playerBFaction));
                 }
             }
 

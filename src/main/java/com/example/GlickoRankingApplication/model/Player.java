@@ -1,10 +1,15 @@
 package com.example.GlickoRankingApplication.model;
 
-import lombok.*;
+import com.example.GlickoRankingApplication.enums.Faction;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 
 
 @Builder
@@ -16,12 +21,14 @@ public class Player {
     @Id
     private String id;
     private String name;
+    private HashMap<Faction,FactionPlayed> factionsPlayed;
 
     private double rating = 1500;       // μ
     private double rd = 350;           // φ
     private double volatility = 0.06;   // σ
 
     private LocalDateTime lastMatchDate;
+    private int matchCount = 0;
 
 
     public Player(String name){
