@@ -1,9 +1,8 @@
 package com.example.GlickoRankingApplication.service;
 
 import com.example.GlickoRankingApplication.clients.BCPClient;
-import com.example.GlickoRankingApplication.dto.CreatePlayerRequest;
 import com.example.GlickoRankingApplication.dto.PlayerDTO;
-import com.example.GlickoRankingApplication.dto.PlayerJson;
+import com.example.GlickoRankingApplication.dto.bcp.PlayerJson;
 import com.example.GlickoRankingApplication.enums.Faction;
 import com.example.GlickoRankingApplication.exceptions.PlayerNotFoundException;
 import com.example.GlickoRankingApplication.model.FactionPlayed;
@@ -26,18 +25,6 @@ public class PlayerService {
 
     public PlayerService(PlayerRepository playerRepository, BCPClient bcpClient) {
         this.playerRepository = playerRepository; this.bcpClient = bcpClient;
-    }
-
-    public List<Player> createPlayers(List<CreatePlayerRequest> request) {
-        log.info("Starting batch player creation : {}", (long) request.size());
-        List<Player> toSave = request.stream()
-                .map(p -> new Player(p.name()))
-                .toList();
-        for (Player p : toSave) {
-            log.info("Saving : {}", p.getName());
-            playerRepository.save(p);
-        }
-        return toSave;
     }
 
     public List<PlayerDTO> getAllPlayers() {
@@ -82,7 +69,6 @@ public class PlayerService {
         playerRepository.saveAll(players);
     }
 
-    // Método modificado para obtener jugadores desde BCPClient
     public List<Player> createPlayersFromBCP(String eventId) {
         // Recuperar los jugadores desde BCPClient
         List<PlayerJson> playersJson = bcpClient.getPlayers(eventId);

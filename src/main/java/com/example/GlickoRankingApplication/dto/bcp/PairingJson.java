@@ -1,5 +1,6 @@
-package com.example.GlickoRankingApplication.dto;
+package com.example.GlickoRankingApplication.dto.bcp;
 
+import com.example.GlickoRankingApplication.dto.GameResult;
 import lombok.Data;
 
 @Data

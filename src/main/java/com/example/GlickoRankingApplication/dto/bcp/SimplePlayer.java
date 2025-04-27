@@ -1,4 +1,4 @@
-package com.example.GlickoRankingApplication.dto;
+package com.example.GlickoRankingApplication.dto.bcp;
 
 import lombok.Data;
 

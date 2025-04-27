@@ -1,10 +1,11 @@
-package com.example.GlickoRankingApplication.dto;
+package com.example.GlickoRankingApplication.dto.bcp;
 
 import lombok.Data;
 
 @Data
-public class SimplifiedPlayer {
+public class UserJson {
     private String id;
     private String firstName;
     private String lastName;
 }
+

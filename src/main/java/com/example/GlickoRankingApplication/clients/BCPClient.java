@@ -1,6 +1,9 @@
 package com.example.GlickoRankingApplication.clients;
 
-import com.example.GlickoRankingApplication.dto.*;
+import com.example.GlickoRankingApplication.dto.bcp.EventDTO;
+import com.example.GlickoRankingApplication.dto.bcp.PairingJson;
+import com.example.GlickoRankingApplication.dto.bcp.PlacingsResponseWrapper;
+import com.example.GlickoRankingApplication.dto.bcp.PlayerJson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
