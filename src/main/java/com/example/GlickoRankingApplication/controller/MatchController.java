@@ -31,11 +31,17 @@ public class MatchController {
     }
 
     @PostMapping("/bulk")
-    public ResponseEntity<String> processMatches(@RequestBody List<MatchDTO> matchDTOS){
-        if(matchDTOS.isEmpty()){
+    public ResponseEntity<String> processMatches(@RequestBody String pairingsJson){
+        if(pairingsJson.isEmpty()){
             return  ResponseEntity.badRequest().body("Cannot process empty list");
         }
-        matchService.bulkMatches(matchDTOS);
+        matchService.importPairingsJson(pairingsJson);
         return ResponseEntity.ok("Matches processed successfully");
+    }
+
+    @DeleteMapping()
+    public ResponseEntity<String> deleteAllMatches(){
+        matchService.deleteAllMatches();
+        return ResponseEntity.ok().build();
     }
 }

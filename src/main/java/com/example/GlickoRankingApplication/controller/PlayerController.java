@@ -1,11 +1,13 @@
 package com.example.GlickoRankingApplication.controller;
 
-import com.example.GlickoRankingApplication.dto.CreatePlayersRequest;
+import com.example.GlickoRankingApplication.dto.PlayersRequest;
 import com.example.GlickoRankingApplication.model.Player;
 import com.example.GlickoRankingApplication.service.PlayerService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -18,10 +20,20 @@ public class PlayerController {
         this.playerService = playerService;
     }
 
-    @PostMapping
-    public ResponseEntity<List<Player>> createPlayers(@RequestBody CreatePlayersRequest request) {
-        List<Player> created = playerService.createPlayers(request);
-        return ResponseEntity.ok(created);
+    @PostMapping("/create")
+    public ResponseEntity<List<Player>> createPlayers(@RequestBody PlayersRequest request) {
+        // Llamamos al servicio para crear los jugadores
+        List<Player> createdPlayers = new ArrayList<>();
+        if(request != null ) {
+            createdPlayers = playerService.createPlayersFromJson(request.getActive());
+        }
+        // Si la lista de jugadores creados no está vacía, devolvemos un 201
+        if (!createdPlayers.isEmpty()) {
+            return new ResponseEntity<>(createdPlayers, HttpStatus.CREATED);
+        }
+
+        // Si no se han creado jugadores nuevos, devolvemos un 200
+        return ResponseEntity.ok().build();
     }
 
     // Endpoint para obtener todos los jugadores

@@ -7,6 +7,8 @@ import com.example.GlickoRankingApplication.model.Match;
 import com.example.GlickoRankingApplication.model.Player;
 import com.example.GlickoRankingApplication.repository.MatchRepository;
 import com.example.GlickoRankingApplication.repository.PlayerRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,8 @@ public class MatchService {
 
     @Autowired
     private GlickoRatingService glickoRatingService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void recordMatch(MatchDTO matchDTO) {
         // Encontrar jugadores en la base de datos
@@ -73,6 +77,45 @@ public class MatchService {
             log.info("Some matches failed to process: " + String.join(", ", failedMatches));
         } else {
             log.info("All matches processed successfully.");
+        }
+    }
+
+    public void deleteAllMatches (){
+        log.info("Deleting all matches");
+        matchRepository.deleteAll();
+        log.info("Deleted all matches");
+    }
+
+    public void importPairingsJson(String pairingsJson) {
+        try {
+            JsonNode root = objectMapper.readTree(pairingsJson);
+            JsonNode activePairings = root.get("active");
+            List<MatchDTO> matches = new ArrayList<>();
+
+            if (activePairings.isArray()) {
+                for (JsonNode pairing : activePairings) {
+                    String playerAId = pairing.get("player1").get("user").get("id").asText();
+                    String playerBId = pairing.get("player2").get("user").get("id").asText();
+                    int playerAScore = pairing.get("player1Game").get("points").asInt();
+                    int playerBScore = pairing.get("player2Game").get("points").asInt();
+
+                    double result;
+                    if (playerAScore > playerBScore) {
+                        result = 1.0;
+                    } else if (playerAScore < playerBScore) {
+                        result = 0.0;
+                    } else {
+                        result = 0.5;
+                    }
+
+                    matches.add(new MatchDTO(playerAId, playerBId, result));
+                }
+            }
+
+            bulkMatches(matches);
+        } catch (Exception e) {
+            log.error("Error importing pairings JSON", e);
+            throw new RuntimeException("Failed to import pairings", e);
         }
     }
 
