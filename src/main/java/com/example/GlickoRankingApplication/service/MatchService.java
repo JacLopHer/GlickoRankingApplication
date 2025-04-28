@@ -1,8 +1,8 @@
 package com.example.GlickoRankingApplication.service;
 
+import com.example.GlickoRankingApplication.clients.BCPClient;
 import com.example.GlickoRankingApplication.dto.MatchDTO;
 import com.example.GlickoRankingApplication.enums.Faction;
-import com.example.GlickoRankingApplication.exceptions.MatchNotSavedException;
 import com.example.GlickoRankingApplication.exceptions.PlayerNotFoundException;
 import com.example.GlickoRankingApplication.model.FactionPlayed;
 import com.example.GlickoRankingApplication.model.Match;
@@ -10,7 +10,6 @@ import com.example.GlickoRankingApplication.model.Player;
 import com.example.GlickoRankingApplication.repository.FactionPlayedRepository;
 import com.example.GlickoRankingApplication.repository.MatchRepository;
 import com.example.GlickoRankingApplication.repository.PlayerRepository;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,37 +37,40 @@ public class MatchService {
     @Autowired
     private FactionPlayedRepository factionPlayedRepository;
 
+    @Autowired
+    private PlayerService playerService;
+
+    @Autowired
+    private BCPClient bcpClient;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Transactional
     public void recordMatch(MatchDTO matchDTO) {
-        // Encontrar jugadores en la base de datos
-        log.info("Start recording match between : {} vs {}", matchDTO.playerAId(), matchDTO.playerBId());
-        Player playerA = playerRepository.findById(matchDTO.playerAId())
-                .orElseThrow(() -> new PlayerNotFoundException(matchDTO.playerAId() + "not found"));
-        Player playerB = playerRepository.findById(matchDTO.playerBId())
-                .orElseThrow(() -> new IllegalArgumentException(matchDTO.playerBId() + "not found"));
+        log.info("Start recording match between : {} vs {}", matchDTO.getPlayer1().getUser().getId(), matchDTO.getPlayer2().getUser().getId());
 
+        Player playerA = playerRepository.findById(matchDTO.getPlayer1().getUser().getId())
+                .orElseThrow(() -> new PlayerNotFoundException(matchDTO.getPlayer1().getUser().getId() + " not found"));
+        Player playerB = playerRepository.findById(matchDTO.getPlayer2().getUser().getId())
+                .orElseThrow(() -> new PlayerNotFoundException(matchDTO.getPlayer2().getUser().getId() + " not found"));
 
-        // Actualizar las listas de facciones jugadas para ambos jugadores
-        updateFactionPlayed(playerA, getFactionFromDisplay(matchDTO.playerAFaction()));
-        updateFactionPlayed(playerB, getFactionFromDisplay(matchDTO.playerBFaction()));
+        updateFactionPlayed(playerA, getFactionFromDisplay(matchDTO.getPlayer1().getFaction()));
+        updateFactionPlayed(playerB, getFactionFromDisplay(matchDTO.getPlayer2().getFaction()));
 
-        // Crear el match
         Match match = Match.builder()
                 .playerA(playerA)
                 .playerB(playerB)
-                .result(matchDTO.result())
-                .date(LocalDateTime.now())// 1 = A gana, 0 = B gana, 0.5 = empate
+                .result(matchDTO.getPlayer1Game().getResult())
+                .date(LocalDateTime.now())
                 .build();
-        // Guardar el match en la base de datos
-        log.info("Saving match {} vs {}:", match.getPlayerA().getName(), match.getPlayerB().getName() );
+
+        log.info("Saving match {} vs {}", match.getPlayerA().getName(), match.getPlayerB().getName());
         matchRepository.save(match);
 
-        // Actualizar ratings de los jugadores
-        glickoRatingService.updateRatings(playerA, playerB, matchDTO.result());
+        List<Player> updatedPlayers = glickoRatingService.updateRatings(playerA, playerB, matchDTO.getPlayer1Game().getResult());
         log.info("Updating ratings for both players");
-        playerRepository.save(playerA);
-        playerRepository.save(playerB);
+
+        playerRepository.saveAll(updatedPlayers); // Guardamos los jugadores actualizados de golpe
         log.info("Match successfully recorded");
     }
 
@@ -98,23 +100,25 @@ public class MatchService {
     }
 
 
-    public void bulkMatches(List<MatchDTO> matchDTOS){
+    public void bulkMatches(String eventId){
         List<String> failedMatches = new ArrayList<>();
-        log.info("Starting to bulk matches : {}", (long) matchDTOS.size());
-        matchDTOS.forEach(match -> {
-            try {
-                recordMatch(match);
-            } catch (MatchNotSavedException e) {
-                // Puedes registrar el fallo o guardar el nombre de la partida fallida
-                failedMatches.add(match.playerAId() + " vs " + match.playerBId());
-            }
-        });
+        log.info("Starting to get matches for event : {}", eventId);
+        int numberOfRounds = bcpClient.getNumberOfRounds(eventId);
+        int numberOfMatches = 0;
+
+        playerService.createPlayersFromBCP(eventId);
+
+        for (int i = 1; i <= numberOfRounds; i++) {
+            List<MatchDTO> matchDTOS = bcpClient.getPairings(eventId,i);
+            matchDTOS.forEach(this::recordMatch);
+            numberOfMatches += matchDTOS.size();
+        }
 
         if (!failedMatches.isEmpty()) {
             // Puedes decidir cómo manejar los fallos: retornar un mensaje, guardar en log, etc.
             log.info("Some matches failed to process: " + String.join(", ", failedMatches));
         } else {
-            log.info("All matches processed successfully.");
+            log.info("All matches processed successfully : {} matches and {} rounds", numberOfMatches, numberOfRounds);
         }
     }
 
@@ -124,44 +128,11 @@ public class MatchService {
         log.info("Deleted all matches");
     }
 
-    public void importPairingsJson(String pairingsJson) {
-        try {
-            JsonNode root = objectMapper.readTree(pairingsJson);
-            JsonNode activePairings = root.get("active");
-            List<MatchDTO> matches = new ArrayList<>();
-
-            if (activePairings.isArray()) {
-                for (JsonNode pairing : activePairings) {
-                    String playerAId = pairing.get("player1").get("user").get("id").asText();
-                    String playerBId = pairing.get("player2").get("user").get("id").asText();
-                    int playerAScore = pairing.get("player1Game").get("points").asInt();
-                    int playerBScore = pairing.get("player2Game").get("points").asInt();
-                    String playerAFaction = pairing.get("player1").get("faction").asText();
-                    String playerBFaction = pairing.get("player2").get("faction").asText();
-
-                    double result;
-                    if (playerAScore > playerBScore) {
-                        result = 1.0;
-                    } else if (playerAScore < playerBScore) {
-                        result = 0.0;
-                    } else {
-                        result = 0.5;
-                    }
-
-                    matches.add(new MatchDTO(playerAId, playerBId, result, playerAFaction, playerBFaction));
-                }
-            }
-
-            bulkMatches(matches);
-        } catch (Exception e) {
-            log.error("Error importing pairings JSON", e);
-            throw new RuntimeException("Failed to import pairings", e);
-        }
-    }
 
     public List<Match> getAllMatches(){
         return matchRepository.findAll();
     }
     @Transactional
     public void saveMatch(Match match) { matchRepository.save(match); }
+
 }

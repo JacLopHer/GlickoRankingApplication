@@ -9,6 +9,6 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PlacingsResponseWrapper {
 
-    private List<PlayerJson> active;  // Lista de jugadores (PlayerJson)
+    private List<PlayerPlayer> active;  // Lista de jugadores (PlayerJson)
 
 }

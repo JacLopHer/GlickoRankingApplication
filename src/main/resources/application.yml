@@ -3,3 +3,6 @@ spring:
     mongodb:
       uri: mongodb+srv://jacilopezwork:Smokione123@canaryrankings.2pa9pdt.mongodb.net/warhammerDB?retryWrites=true&w=majority&appName=canaryrankings
       database: warhammerDB
+bcp:
+  username: "kanarias.open@gmail.com"
+  password: "Tito&2026"

@@ -2,30 +2,28 @@ package com.example.GlickoRankingApplication.service;
 
 import com.example.GlickoRankingApplication.clients.BCPClient;
 import com.example.GlickoRankingApplication.dto.PlayerDTO;
-import com.example.GlickoRankingApplication.dto.bcp.PlayerJson;
+import com.example.GlickoRankingApplication.dto.bcp.PlayerPlayer;
 import com.example.GlickoRankingApplication.enums.Faction;
-import com.example.GlickoRankingApplication.exceptions.PlayerNotFoundException;
 import com.example.GlickoRankingApplication.model.FactionPlayed;
 import com.example.GlickoRankingApplication.model.Player;
 import com.example.GlickoRankingApplication.repository.PlayerRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class PlayerService {
-    private final PlayerRepository playerRepository;
-    private final BCPClient bcpClient;
+    @Autowired
+    private PlayerRepository playerRepository;
+    @Autowired
+    private BCPClient bcpClient;
 
-    public PlayerService(PlayerRepository playerRepository, BCPClient bcpClient) {
-        this.playerRepository = playerRepository; this.bcpClient = bcpClient;
-    }
 
     public List<PlayerDTO> getAllPlayers() {
         List<Player> players = playerRepository.findAll();
@@ -51,11 +49,6 @@ public class PlayerService {
         return mostPlayedFaction;
     }
 
-    public Player getPlayerByName(String name) {
-        log.info("Attempting to find : {}", name);
-        return playerRepository.findByName(name).orElseThrow(() -> new PlayerNotFoundException(name));
-    }
-
     public void applyDecayToAllPlayers() {
         log.info("Starting to apply decay to all players");
         List<Player> players = playerRepository.findAll();
@@ -69,9 +62,9 @@ public class PlayerService {
         playerRepository.saveAll(players);
     }
 
-    public List<Player> createPlayersFromBCP(String eventId) {
+    public void createPlayersFromBCP(String eventId) {
         // Recuperar los jugadores desde BCPClient
-        List<PlayerJson> playersJson = bcpClient.getPlayers(eventId);
+        List<PlayerPlayer> playersJson = bcpClient.getPlayers(eventId);
 
         // Filtrar jugadores que ya existen en la base de datos
         playersJson = playersJson.stream()
@@ -86,7 +79,7 @@ public class PlayerService {
                     player.setId(p.getUser().getId()); // Usamos userId como id
                     return player;
                 })
-                .collect(Collectors.toList());
+                .toList();
 
         log.info("Starting batch player creation from BCP : {}", toSave.size());
 
@@ -95,8 +88,6 @@ public class PlayerService {
             log.info("Saving : {}", p.getName());
             playerRepository.save(p);
         }
-
-        return toSave;
     }
 
     private boolean shouldDecay(Player player) {
@@ -106,4 +97,6 @@ public class PlayerService {
     public void removeAllPlayers(){
         playerRepository.deleteAll();
     }
+
+    public void removePlayerById(String playerId) {playerRepository.deleteById(playerId);}
 }

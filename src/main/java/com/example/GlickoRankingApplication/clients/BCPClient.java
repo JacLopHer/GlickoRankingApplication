@@ -1,24 +1,31 @@
 package com.example.GlickoRankingApplication.clients;
 
+import com.example.GlickoRankingApplication.config.BcpProperties;
+import com.example.GlickoRankingApplication.dto.MatchDTO;
 import com.example.GlickoRankingApplication.dto.bcp.EventDTO;
-import com.example.GlickoRankingApplication.dto.bcp.PairingJson;
+import com.example.GlickoRankingApplication.dto.bcp.PairingsResponseWrapper;
 import com.example.GlickoRankingApplication.dto.bcp.PlacingsResponseWrapper;
-import com.example.GlickoRankingApplication.dto.bcp.PlayerJson;
+import com.example.GlickoRankingApplication.dto.bcp.PlayerPlayer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Component
 public class BCPClient {
 
     private final WebClient webClient;
     private String authToken;
+    private final BcpProperties bcpProperties;
 
-    public BCPClient(WebClient.Builder webClientBuilder) {
+    @Autowired
+    public BCPClient(WebClient.Builder webClientBuilder, BcpProperties bcpProperties) {
+        this.bcpProperties = bcpProperties;
         this.webClient = webClientBuilder
                 .baseUrl("https://newprod-api.bestcoastpairings.com/v1")
                 .defaultHeader("client-id", "web-app")
@@ -26,7 +33,7 @@ public class BCPClient {
     }
 
     public void authenticate() {
-        var requestBody = new AuthRequest("kanarias.open@gmail.com", "Tito&2026");
+        var requestBody = new AuthRequest(bcpProperties.getUsername(), bcpProperties.getPassword());
 
         try {
             AuthResponse response = webClient.post()
@@ -44,38 +51,40 @@ public class BCPClient {
     }
 
     public Integer getNumberOfRounds(String eventId) {
+        authenticate();
         return webClient.get()
                 .uri("/events/{eventId}", eventId)
                 .headers(headers -> headers.setBearerAuth(authToken))
                 .retrieve()
                 .bodyToMono(EventDTO.class)
-                .map(EventDTO::rounds) // Asumiendo que Event tiene un método getRounds que devuelve el número de rondas
+                .map(EventDTO::numberOfRounds) // Asumiendo que Event tiene un método getRounds que devuelve el número de rondas
                 .doOnTerminate(() -> System.out.println("Request completed"))
                 .block(); // block para esperar la respuesta de manera sincrónica
     }
 
-    public List<PairingJson> getPairings(String eventId, int round) {
-        return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/events/{eventId}/pairings")
-                        .queryParam("pairingType", "Pairing")
-                        .queryParam("round", round)
-                        .build(eventId))
-                .headers(headers -> headers.setBearerAuth(authToken))
-                .retrieve()
-                .bodyToFlux(PairingJson.class)
-                .collectList()
-                .block();
+    public List<MatchDTO> getPairings(String eventId, int round) {
+        authenticate();
+        return Objects.requireNonNull(webClient.get()
+                        .uri(uriBuilder -> uriBuilder
+                                .path("/events/{eventId}/pairings")
+                                .queryParam("pairingType", "Pairing")
+                                .queryParam("round", round)
+                                .build(eventId))
+                        .headers(headers -> headers.setBearerAuth(authToken))
+                        .retrieve()
+                        .bodyToMono(PairingsResponseWrapper.class)
+                        .block())
+                .getActive();
     }
 
 
-    public List<PlayerJson> getPlayers(String eventId) {
+    public List<PlayerPlayer> getPlayers(String eventId) {
         authenticate();
 
         ObjectMapper objectMapper = new ObjectMapper();
 
         // Usamos exchange() para mayor control sobre la respuesta
-        List<PlayerJson> response = webClient.get()
+        List<PlayerPlayer> response = webClient.get()
                 .uri("/events/{eventId}/players?placings=true", eventId)
                 .headers(headers -> headers.setBearerAuth(authToken))
                 .retrieve()
@@ -84,7 +93,8 @@ public class BCPClient {
                 .doOnTerminate(() -> System.out.println("Request Get Players from BCP completed"))
                 .block();  // Esto bloquea y obtiene la respuesta
 
-        return response.size() > 0 ? response : new ArrayList<>();
+        assert response != null;
+        return response.isEmpty() ? new ArrayList<>() : response;
     }
 
     // Clases auxiliares

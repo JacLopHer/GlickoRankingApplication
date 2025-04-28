@@ -1,7 +1,6 @@
 package com.example.GlickoRankingApplication.controller;
 
 import com.example.GlickoRankingApplication.dto.PlayerDTO;
-import com.example.GlickoRankingApplication.model.Player;
 import com.example.GlickoRankingApplication.service.PlayerService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -20,29 +19,53 @@ public class PlayerController {
         this.playerService = playerService;
     }
 
+    /**
+     * Create players from an event
+     * @param eventId
+     * @return List<Player> list of players
+     */
     @PostMapping()
-    public ResponseEntity<List<Player>> createPlayers(@RequestParam String eventId) {
-        // Llamamos al servicio para crear los jugadores
-        List<Player> players = playerService.createPlayersFromBCP(eventId);
-        return ResponseEntity.ok(players);
+    public ResponseEntity<List<PlayerDTO>> createPlayers(@RequestParam String eventId) {
+        if(!eventId.isEmpty()){
+            playerService.createPlayersFromBCP(eventId);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.badRequest().build();
     }
 
-    // Endpoint para obtener todos los jugadores
+    /**
+     * Retrieves all players
+     * @return List<PlayerDTO> List of players
+     */
     @GetMapping
     public List<PlayerDTO> getAllPlayers() {
         return playerService.getAllPlayers();
     }
 
-    // Endpoint para obtener un jugador por nombre
-    @GetMapping("/{name}")
-    public Player getPlayerByName(@PathVariable String name) {
-        return playerService.getPlayerByName(name);
-    }
 
+    /**
+     * Deletes all players from the database.
+     * @return ResponseEntity
+     */
     @DeleteMapping
     public ResponseEntity<String> deleteAllPlayers(){
         try{
             playerService.removeAllPlayers();
+        } catch (Exception e){
+            log.info("error");
+            return ResponseEntity.internalServerError().build();
+        }
+        return ResponseEntity.ok("Removed all players");
+    }
+
+    /**
+     * Deletes a players from the database.
+     * @return ResponseEntity
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deletePlayer(@PathVariable String id){
+        try{
+            playerService.removePlayerById(id);
         } catch (Exception e){
             log.info("error");
             return ResponseEntity.internalServerError().build();

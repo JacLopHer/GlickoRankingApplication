@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -26,40 +27,76 @@ public class GlickoRatingService {
         return 1.0 / (1.0 + Math.exp(-g(phi_j) * (mu - mu_j)));
     }
 
-    public void updateRatings(Player player, Player opponent, double score) {
-        log.info("Starting to update ratings for game between: {} vs {}", player.getName(), opponent.getName());
+    public List<Player> updateRatings(Player playerA, Player playerB, int result) {
+        PlayerSnapshot snapshotA = new PlayerSnapshot(playerA);
+        PlayerSnapshot snapshotB = new PlayerSnapshot(playerB);
 
-        // Verificar si el jugador tiene una volatilidad. Si no la tiene, se usa el valor predeterminado.
-        if (player.getVolatility() == 0) {
-            player.setVolatility(DEFAULT_VOLATILITY);
+        double scoreA = mapResultToScore(result);
+        double scoreB = 1.0 - scoreA;
+
+        PlayerRatingUpdate updatedA = calculateNewRating(snapshotA, snapshotB, scoreA);
+        PlayerRatingUpdate updatedB = calculateNewRating(snapshotB, snapshotA, scoreB);
+
+        applyRatingUpdate(playerA, updatedA);
+        applyRatingUpdate(playerB, updatedB);
+
+        return List.of(playerA, playerB); // <- devolvemos los dos players actualizados
+    }
+
+    private static class PlayerSnapshot {
+        double rating;
+        double rd;
+        double volatility;
+
+        public PlayerSnapshot(Player player) {
+            this.rating = player.getRating();
+            this.rd = player.getRd();
+            this.volatility = player.getVolatility();
         }
+    }
 
-        // Verificar si el oponente tiene una volatilidad. Si no la tiene, se usa el valor predeterminado.
-        if (opponent.getVolatility() == 0) {
-            opponent.setVolatility(DEFAULT_VOLATILITY);
+    private double mapResultToScore(int result) {
+        return switch (result) {
+            case 2 -> 1.0; // victoria
+            case 1 -> 0.5; // empate
+            case 0 -> 0.0; // derrota
+            default -> throw new IllegalArgumentException("Invalid result: " + result);
+        };
+    }
+
+    private static class PlayerRatingUpdate {
+        double newRating;
+        double newRd;
+        double newVolatility;
+
+        public PlayerRatingUpdate(double newRating, double newRd, double newVolatility) {
+            this.newRating = newRating;
+            this.newRd = newRd;
+            this.newVolatility = newVolatility;
         }
+    }
 
-        // Conversión inicial
-        double mu = (player.getRating() - DEFAULT_RATING) / SCALE;
-        double phi = player.getRd() / SCALE;
-        double sigma = player.getVolatility(); // Usamos la volatilidad del jugador
+    private double f(double x, double delta, double phi, double v, double a) {
+        double ex = Math.exp(x);
+        double num = ex * (delta * delta - phi * phi - v - ex);
+        double den = 2.0 * Math.pow(phi * phi + v + ex, 2);
+        return num / den - (x - a) / (TAU * TAU);
+    }
 
-        double mu_j = (opponent.getRating() - DEFAULT_RATING) / SCALE;
-        double phi_j = opponent.getRd() / SCALE;
+    private PlayerRatingUpdate calculateNewRating(PlayerSnapshot player, PlayerSnapshot opponent, double score) {
+        double mu = (player.rating - DEFAULT_RATING) / SCALE;
+        double phi = player.rd / SCALE;
+        double sigma = player.volatility;
 
-        // Calcular g y E
+        double mu_j = (opponent.rating - DEFAULT_RATING) / SCALE;
+        double phi_j = opponent.rd / SCALE;
+
         double g = g(phi_j);
         double E = E(mu, mu_j, phi_j);
 
-        log.info("g = {}, E = {}", g, E);
-
-        // Calcular v y delta
         double v = 1.0 / (g * g * E * (1 - E));
         double delta = v * g * (score - E);
 
-        log.info("v = {}, delta = {}", v, delta);
-
-        // Resolución para a, A, B, sigmaPrime, phiStar, etc.
         double a = Math.log(sigma * sigma);
         double A = a;
         double B;
@@ -87,7 +124,6 @@ public class GlickoRatingService {
             } else {
                 fA /= 2;
             }
-
             B = C;
             fB = fC;
         }
@@ -97,70 +133,19 @@ public class GlickoRatingService {
         double phiPrime = 1.0 / Math.sqrt(1.0 / (phiStar * phiStar) + 1.0 / v);
         double muPrime = mu + phiPrime * phiPrime * g * (score - E);
 
-        // Actualización final para player
-        player.setRating(muPrime * SCALE + DEFAULT_RATING);
-        player.setRd(phiPrime * SCALE);
-        player.setVolatility(sigmaPrime);
+        double newRating = muPrime * SCALE + DEFAULT_RATING;
+        double newRd = phiPrime * SCALE;
 
-        // Ahora actualizar ratings del oponente (playerB)
-        double muB = (opponent.getRating() - DEFAULT_RATING) / SCALE;
-        double phiB = opponent.getRd() / SCALE;
-        double sigmaB = opponent.getVolatility();
-
-        double mu_jB = (player.getRating() - DEFAULT_RATING) / SCALE;
-        double phi_jB = player.getRd() / SCALE;
-
-        g = g(phi_jB);
-        E = E(muB, mu_jB, phi_jB);
-        v = 1.0 / (g * g * E * (1 - E));
-        delta = v * g * (1 - score - E); // El score invertido para el oponente
-
-        a = Math.log(sigmaB * sigmaB);
-        A = a;
-        B = Math.log(Math.pow(delta, 2) - phiB * phiB - v);
-
-        fA = f(A, delta, phiB, v, a);
-        fB = f(B, delta, phiB, v, a);
-
-        while (Math.abs(B - A) > 0.000001) {
-            double C = A + (A - B) * fA / (fB - fA);
-            double fC = f(C, delta, phiB, v, a);
-
-            if (fC * fB < 0) {
-                A = B;
-                fA = fB;
-            } else {
-                fA /= 2;
-            }
-
-            B = C;
-            fB = fC;
-        }
-
-        log.info("Player {}: v = {}, delta = {}", player.getName(), v, delta);
-
-        sigmaPrime = Math.exp(A / 2);
-        phiStar = Math.sqrt(phiB * phiB + sigmaPrime * sigmaPrime);
-        phiPrime = 1.0 / Math.sqrt(1.0 / (phiStar * phiStar) + 1.0 / v);
-        muPrime = muB + phiPrime * phiPrime * g * (1 - score - E);
-
-        // Actualización final para opponent (playerB)
-        opponent.setRating(muPrime * SCALE + DEFAULT_RATING);
-        opponent.setRd(phiPrime * SCALE);
-        opponent.setVolatility(sigmaPrime);
-
-        player.setLastMatchDate(LocalDateTime.now());
-        opponent.setLastMatchDate(LocalDateTime.now());
-
-        log.info("Ratings updated");
+        return new PlayerRatingUpdate(newRating, newRd, sigmaPrime);
     }
 
-    private double f(double x, double delta, double phi, double v, double a) {
-        double ex = Math.exp(x);
-        double num = ex * (delta * delta - phi * phi - v - ex);
-        double den = 2.0 * Math.pow(phi * phi + v + ex, 2);
-        return num / den - (x - a) / (TAU * TAU);
+
+    private void applyRatingUpdate(Player player, PlayerRatingUpdate update) {
+        player.setRating(update.newRating);
+        player.setRd(update.newRd);
+        player.setVolatility(update.newVolatility);
     }
+
 
     public void applyRatingDecay(Player player) {
         if(player.getLastMatchDate() == null) {

@@ -20,7 +20,6 @@ public class Match {
     private Player playerA;
     private Player playerB;
 
-    // 1 = A win, 0 = B lost, 0.5 = draw
     private double result;
 
     private LocalDateTime date;
