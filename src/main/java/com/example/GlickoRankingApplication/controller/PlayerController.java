@@ -47,7 +47,7 @@ public class PlayerController {
      * Deletes all players from the database.
      * @return ResponseEntity
      */
-    @DeleteMapping
+    @DeleteMapping("/delete")
     public ResponseEntity<String> deleteAllPlayers(){
         try{
             playerService.removeAllPlayers();
