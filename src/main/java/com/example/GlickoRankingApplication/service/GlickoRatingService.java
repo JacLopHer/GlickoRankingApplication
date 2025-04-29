@@ -1,9 +1,17 @@
 package com.example.GlickoRankingApplication.service;
 
+import com.example.GlickoRankingApplication.dto.glicko.MatchResult;
 import com.example.GlickoRankingApplication.model.Player;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+
 @Service
+@Slf4j
 public class GlickoRatingService {
     // Constantes del sistema Glicko-2
     private static final double TAU = 0.5;
@@ -21,26 +29,42 @@ public class GlickoRatingService {
         return 1.0 / (1.0 + Math.exp(-g(phi_j) * (mu - mu_j)));
     }
 
-    public void updateRatings(Player player, Player opponent, double score) {
-        // Conversión inicial
-        double mu = (player.getRating() - DEFAULT_RATING) / SCALE;
-        double phi = player.getRd() / SCALE;
-        double sigma = player.getVolatility();
+    public Player updateRatingsBulk(Player player, List<MatchResult> matchResults) {
+        PlayerSnapshot snapshot = new PlayerSnapshot(player);
 
-        double mu_j = (opponent.getRating() - DEFAULT_RATING) / SCALE;
-        double phi_j = opponent.getRd() / SCALE;
+        double mu = (snapshot.rating - DEFAULT_RATING) / SCALE;
+        double phi = snapshot.rd / SCALE;
+        double sigma = snapshot.volatility;
 
-        double g = g(phi_j);
-        double E = E(mu, mu_j, phi_j);
-        double v = 1.0 / (g * g * E * (1 - E));
-        double delta = v * g * (score - E);
+        double sumG2Et1Et = 0.0;
+        double sumGScoreMinusE = 0.0;
+
+        for (MatchResult match : matchResults) {
+            PlayerSnapshot opponent = new PlayerSnapshot(match.getOpponent());
+            double mu_j = (opponent.rating - DEFAULT_RATING) / SCALE;
+            double phi_j = opponent.rd / SCALE;
+            double score = mapScore(match.getScore()); // 1.0 = win, 0.5 = draw, 0.0 = loss
+
+            double g = g(phi_j);
+            double E = E(mu, mu_j, phi_j);
+
+            sumG2Et1Et += g * g * E * (1 - E);
+            sumGScoreMinusE += g * (score - E);
+        }
+
+        if (matchResults.isEmpty()) {
+            applyRatingDecay(player);
+            return player;
+        }
+
+        double v = 1.0 / sumG2Et1Et;
+        double delta = v * sumGScoreMinusE;
 
         double a = Math.log(sigma * sigma);
         double A = a;
         double B;
-
-        if (Math.pow(delta, 2) > phi * phi + v) {
-            B = Math.log(Math.pow(delta, 2) - phi * phi - v);
+        if (delta * delta > phi * phi + v) {
+            B = Math.log(delta * delta - phi * phi - v);
         } else {
             double k = 1;
             while (f(a - k * TAU, delta, phi, v, a) < 0) {
@@ -62,7 +86,6 @@ public class GlickoRatingService {
             } else {
                 fA /= 2;
             }
-
             B = C;
             fB = fC;
         }
@@ -70,57 +93,43 @@ public class GlickoRatingService {
         double sigmaPrime = Math.exp(A / 2);
         double phiStar = Math.sqrt(phi * phi + sigmaPrime * sigmaPrime);
         double phiPrime = 1.0 / Math.sqrt(1.0 / (phiStar * phiStar) + 1.0 / v);
-        double muPrime = mu + phiPrime * phiPrime * g * (score - E);
+        double muPrime = mu + phiPrime * phiPrime * sumGScoreMinusE;
 
-        // Actualización final para player
-        player.setRating(muPrime * SCALE + DEFAULT_RATING);
-        player.setRd(phiPrime * SCALE);
+        double newRating = muPrime * SCALE + DEFAULT_RATING;
+        double newRd = phiPrime * SCALE;
+
+        player.setRating(newRating);
+        player.setRd(capRatingDeviation(newRd));
         player.setVolatility(sigmaPrime);
 
-        // Ahora actualizar ratings del oponente (playerB)
-        double muB = (opponent.getRating() - DEFAULT_RATING) / SCALE;
-        double phiB = opponent.getRd() / SCALE;
-        double sigmaB = opponent.getVolatility();
+        return player;
 
-        double mu_jB = (player.getRating() - DEFAULT_RATING) / SCALE;
-        double phi_jB = player.getRd() / SCALE;
+    }
 
-        g = g(phi_jB);
-        E = E(muB, mu_jB, phi_jB);
-        v = 1.0 / (g * g * E * (1 - E));
-        delta = v * g * (1 - score); // El score invertido para el oponente
-
-        a = Math.log(sigmaB * sigmaB);
-        A = a;
-        B = Math.log(Math.pow(delta, 2) - phiB * phiB - v);
-
-        fA = f(A, delta, phiB, v, a);
-        fB = f(B, delta, phiB, v, a);
-
-        while (Math.abs(B - A) > 0.000001) {
-            double C = A + (A - B) * fA / (fB - fA);
-            double fC = f(C, delta, phiB, v, a);
-
-            if (fC * fB < 0) {
-                A = B;
-                fA = fB;
-            } else {
-                fA /= 2;
-            }
-
-            B = C;
-            fB = fC;
+    // Método auxiliar para aplicar la decadencia en el rating (RD) cuando un jugador ha estado inactivo
+    public void applyRatingDecay(Player player) {
+        if(player.getLastMatchDate() == null) {
+            player.setLastMatchDate(LocalDateTime.now());
         }
 
-        sigmaPrime = Math.exp(A / 2);
-        phiStar = Math.sqrt(phiB * phiB + sigmaPrime * sigmaPrime);
-        phiPrime = 1.0 / Math.sqrt(1.0 / (phiStar * phiStar) + 1.0 / v);
-        muPrime = muB + phiPrime * phiPrime * g * (1 - score - E); // También invertimos el score para playerB
+        long weeksInactive = ChronoUnit.WEEKS.between(player.getLastMatchDate(), LocalDateTime.now());
+        if (weeksInactive > 0) {
+            // RD se incrementa con la inactividad, límite máximo = DEFAULT_RD
+            double phi = player.getRd() / SCALE;
+            double newPhi = Math.sqrt(phi * phi + player.getVolatility() * player.getVolatility() * weeksInactive);
+            double newRD = Math.min(newPhi * SCALE, DEFAULT_RD); // No más de RD inicial
 
-        // Actualización final para opponent (playerB)
-        opponent.setRating(muPrime * SCALE + DEFAULT_RATING);
-        opponent.setRd(phiPrime * SCALE);
-        opponent.setVolatility(sigmaPrime);
+            player.setRd(newRD);
+        }
+    }
+
+    // Método para limitar el valor de RD dentro de un rango
+    private double capRatingDeviation(double rd) {
+        double minRD = 30.0;
+        double maxRD = 350.0;
+        if (rd < minRD) return minRD;
+        if (rd > maxRD) return maxRD;
+        return rd;
     }
 
     private double f(double x, double delta, double phi, double v, double a) {
@@ -128,5 +137,39 @@ public class GlickoRatingService {
         double num = ex * (delta * delta - phi * phi - v - ex);
         double den = 2.0 * Math.pow(phi * phi + v + ex, 2);
         return num / den - (x - a) / (TAU * TAU);
+    }
+
+    @Data
+    private static class PlayerRatingUpdate {
+        private double newRating;
+        private double newRd;
+        private double newVolatility;
+
+        public PlayerRatingUpdate(double newRating, double newRd, double newVolatility) {
+            this.newRating = newRating;
+            this.newRd = newRd;
+            this.newVolatility = newVolatility;
+        }
+    }
+
+    private static class PlayerSnapshot {
+        double rating;
+        double rd;
+        double volatility;
+
+        public PlayerSnapshot(Player player) {
+            this.rating = player.getRating();
+            this.rd = player.getRd();
+            this.volatility = player.getVolatility();
+        }
+    }
+
+    private double mapScore(int score) {
+        return switch (score) {  // suponiendo que MatchResult tiene un tipo de resultado
+            case 2 -> 1.0;
+            case 1 -> 0.5;
+            case 0 -> 0.0;
+            default -> throw new IllegalArgumentException("Tipo de resultado desconocido: " + score);
+        };
     }
 }

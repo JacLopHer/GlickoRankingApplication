@@ -1,33 +1,35 @@
 package com.example.GlickoRankingApplication.model;
 
-import lombok.*;
-import jakarta.persistence.*;
+import com.example.GlickoRankingApplication.enums.Faction;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 
-@Entity
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+
 @Builder
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Document(collection = "players")
 public class Player {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+    private String id;
     private String name;
+    private HashMap<Faction,FactionPlayed> factionsPlayed;
 
     private double rating = 1500;       // μ
     private double rd = 350;           // φ
     private double volatility = 0.06;   // σ
 
-    private LocalDateTime lastMatchDate;
+    private LocalDateTime lastMatchDate = LocalDateTime.now();
+    private int matchCount = 0;
 
-    @PrePersist
-    @PreUpdate
-    public void updateTimestamp() {
-        this.lastMatchDate = LocalDateTime.now();
-    }
 
     public Player(String name){
         if(name == null || name.trim().isBlank()){

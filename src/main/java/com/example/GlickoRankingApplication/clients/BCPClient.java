@@ -1,0 +1,108 @@
+package com.example.GlickoRankingApplication.clients;
+
+import com.example.GlickoRankingApplication.config.BcpProperties;
+import com.example.GlickoRankingApplication.dto.MatchDTO;
+import com.example.GlickoRankingApplication.dto.bcp.EventDTO;
+import com.example.GlickoRankingApplication.dto.wrappers.PairingsResponseWrapper;
+import com.example.GlickoRankingApplication.dto.wrappers.PlacingsResponseWrapper;
+import com.example.GlickoRankingApplication.dto.bcp.PlayerPlayer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+@Component
+public class BCPClient {
+
+    private final WebClient webClient;
+    private String authToken;
+    private final BcpProperties bcpProperties;
+
+    @Autowired
+    public BCPClient(WebClient.Builder webClientBuilder, BcpProperties bcpProperties) {
+        this.bcpProperties = bcpProperties;
+        this.webClient = webClientBuilder
+                .baseUrl("https://newprod-api.bestcoastpairings.com/v1")
+                .defaultHeader("client-id", "web-app")
+                .build();
+    }
+
+    public void authenticate() {
+        var requestBody = new AuthRequest(bcpProperties.getUsername(), bcpProperties.getPassword());
+
+        try {
+            AuthResponse response = webClient.post()
+                    .uri("/users/signin")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(AuthResponse.class)
+                    .block();
+
+            assert response != null;
+            this.authToken = response.accessToken();
+        } catch (WebClientResponseException e) {
+            throw new RuntimeException("Failed to authenticate: " + e.getResponseBodyAsString(), e);
+        }
+    }
+
+    public Integer getNumberOfRounds(String eventId) {
+        authenticate();
+        return webClient.get()
+                .uri("/events/{eventId}", eventId)
+                .headers(headers -> headers.setBearerAuth(authToken))
+                .retrieve()
+                .bodyToMono(EventDTO.class)
+                .map(EventDTO::numberOfRounds) // Asumiendo que Event tiene un método getRounds que devuelve el número de rondas
+                .doOnTerminate(() -> System.out.println("Request completed"))
+                .block(); // block para esperar la respuesta de manera sincrónica
+    }
+
+    public List<MatchDTO> getPairings(String eventId, int round) {
+        authenticate();
+        return Objects.requireNonNull(webClient.get()
+                        .uri(uriBuilder -> uriBuilder
+                                .path("/events/{eventId}/pairings")
+                                .queryParam("pairingType", "Pairing")
+                                .queryParam("round", round)
+                                .build(eventId))
+                        .headers(headers -> headers.setBearerAuth(authToken))
+                        .retrieve()
+                        .bodyToMono(PairingsResponseWrapper.class)
+                        .block())
+                .getActive();
+    }
+
+
+    public List<PlayerPlayer> getPlayers(String eventId) {
+        authenticate();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        // Usamos exchange() para mayor control sobre la respuesta
+        List<PlayerPlayer> response = webClient.get()
+                .uri("/events/{eventId}/players?placings=true", eventId)
+                .headers(headers -> headers.setBearerAuth(authToken))
+                .retrieve()
+                .bodyToMono(PlacingsResponseWrapper.class)
+                .map(PlacingsResponseWrapper::getActive)
+                .doOnTerminate(() -> System.out.println("Request Get Players from BCP completed"))
+                .block();  // Esto bloquea y obtiene la respuesta
+
+        assert response != null;
+        return response.isEmpty() ? new ArrayList<>() : response;
+    }
+
+    // Clases auxiliares
+    private record AuthRequest(String username, String password) {}
+
+    private record AuthResponse(String accessToken) {
+        public String accessToken() {
+            return accessToken;  // Solo devolvemos el accessToken
+        }
+    }
+}

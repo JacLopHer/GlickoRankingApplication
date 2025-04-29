@@ -1,15 +1,17 @@
 package com.example.GlickoRankingApplication.controller;
 
-import com.example.GlickoRankingApplication.dto.CreatePlayersRequest;
-import com.example.GlickoRankingApplication.model.Player;
+import com.example.GlickoRankingApplication.dto.PlayerDTO;
 import com.example.GlickoRankingApplication.service.PlayerService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("api/players")
+@RequestMapping("api")
+@CrossOrigin(origins = "http://localhost:5173")
+@Slf4j
 public class PlayerController {
     private final PlayerService playerService;
 
@@ -17,21 +19,57 @@ public class PlayerController {
         this.playerService = playerService;
     }
 
-    @PostMapping
-    public ResponseEntity<List<Player>> createPlayers(@RequestBody CreatePlayersRequest request) {
-        List<Player> created = playerService.createPlayers(request);
-        return ResponseEntity.ok(created);
+    /**
+     * Create players from an event
+     * @param eventId
+     * @return List<Player> list of players
+     */
+    @PostMapping("/private/players")
+    public ResponseEntity<List<PlayerDTO>> createPlayers(@RequestParam String eventId) {
+        if(!eventId.isEmpty()){
+            playerService.createPlayersFromBCP(eventId);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.badRequest().build();
     }
 
-    // Endpoint para obtener todos los jugadores
-    @GetMapping
-    public List<Player> getAllPlayers() {
+    /**
+     * Retrieves all players
+     * @return List<PlayerDTO> List of players
+     */
+    @GetMapping("public/players")
+    public List<PlayerDTO> getAllPlayers() {
         return playerService.getAllPlayers();
     }
 
-    // Endpoint para obtener un jugador por nombre
-    @GetMapping("/{name}")
-    public Player getPlayerByName(@PathVariable String name) {
-        return playerService.getPlayerByName(name);
+
+    /**
+     * Deletes all players from the database.
+     * @return ResponseEntity
+     */
+    @DeleteMapping("/private/players/delete")
+    public ResponseEntity<String> deleteAllPlayers(){
+        try{
+            playerService.removeAllPlayers();
+        } catch (Exception e){
+            log.info("error");
+            return ResponseEntity.internalServerError().build();
+        }
+        return ResponseEntity.ok("Removed all players");
+    }
+
+    /**
+     * Deletes a players from the database.
+     * @return ResponseEntity
+     */
+    @DeleteMapping("/private/{id}")
+    public ResponseEntity<String> deletePlayer(@PathVariable String id){
+        try{
+            playerService.removePlayerById(id);
+        } catch (Exception e){
+            log.info("error");
+            return ResponseEntity.internalServerError().build();
+        }
+        return ResponseEntity.ok("Removed all players");
     }
 }

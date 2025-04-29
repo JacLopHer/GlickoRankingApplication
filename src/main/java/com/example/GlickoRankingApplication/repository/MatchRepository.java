@@ -1,7 +1,7 @@
 package com.example.GlickoRankingApplication.repository;
 
 import com.example.GlickoRankingApplication.model.Match;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface MatchRepository extends JpaRepository<Match, Long> {
+public interface MatchRepository extends MongoRepository<Match, String> {
 }
