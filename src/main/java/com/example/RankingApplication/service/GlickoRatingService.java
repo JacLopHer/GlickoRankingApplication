@@ -2,7 +2,6 @@ package com.example.RankingApplication.service;
 
 import com.example.RankingApplication.dto.glicko.MatchResult;
 import com.example.RankingApplication.model.Player;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +16,6 @@ public class GlickoRatingService {
     private static final double TAU = 0.5;
     private static final double DEFAULT_RATING = 1500.0;
     private static final double DEFAULT_RD = 350.0;
-    private static final double DEFAULT_VOLATILITY = 0.06;
     private static final double SCALE = 173.7178;
 
     // Conversiones según Glicko-2 (escala interna)
@@ -139,18 +137,7 @@ public class GlickoRatingService {
         return num / den - (x - a) / (TAU * TAU);
     }
 
-    @Data
-    private static class PlayerRatingUpdate {
-        private double newRating;
-        private double newRd;
-        private double newVolatility;
 
-        public PlayerRatingUpdate(double newRating, double newRd, double newVolatility) {
-            this.newRating = newRating;
-            this.newRd = newRd;
-            this.newVolatility = newVolatility;
-        }
-    }
 
     private static class PlayerSnapshot {
         double rating;

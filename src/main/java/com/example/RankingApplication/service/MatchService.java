@@ -1,6 +1,6 @@
 package com.example.RankingApplication.service;
 
-import com.example.RankingApplication.clients.BCPClient;
+import com.example.RankingApplication.client.BCPClient;
 import com.example.RankingApplication.dto.MatchDTO;
 import com.example.RankingApplication.dto.glicko.MatchResult;
 import com.example.RankingApplication.enums.Faction;
@@ -124,8 +124,8 @@ public class MatchService {
         for (Map.Entry<Player, List<MatchResult>> entry : matchResultsMap.entrySet()) {
             Player player = entry.getKey();
             List<MatchResult> matchResults = entry.getValue();
-            player.setMatchCount(player.getMatchCount() + numberOfRounds);
-            player = updateFactionPlayed(player, matchResults.get(0).getFaction(), numberOfRounds);
+            player.setMatchCount(player.getMatchCount() + matchResults.size());
+            player = updateFactionPlayed(player, matchResults.get(0).getFaction(), matchResults.size());
             player = glickoRatingService.updateRatingsBulk(player, matchResults);
             playerRepository.save(player);
         }
