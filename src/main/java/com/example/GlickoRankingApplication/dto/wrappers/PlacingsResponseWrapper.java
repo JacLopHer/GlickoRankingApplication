@@ -1,5 +1,6 @@
-package com.example.GlickoRankingApplication.dto.bcp;
+package com.example.GlickoRankingApplication.dto.wrappers;
 
+import com.example.GlickoRankingApplication.dto.bcp.PlayerPlayer;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 

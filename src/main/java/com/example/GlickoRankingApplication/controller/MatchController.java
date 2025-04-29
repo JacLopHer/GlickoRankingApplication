@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/matches")
+@RequestMapping("/api/private/matches")
 @CrossOrigin(origins = "http://localhost:5173")
 public class MatchController {
 
@@ -33,6 +33,6 @@ public class MatchController {
     @DeleteMapping()
     public ResponseEntity<String> deleteAllMatches(){
         matchService.deleteAllMatches();
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok("Removed all matches");
     }
 }

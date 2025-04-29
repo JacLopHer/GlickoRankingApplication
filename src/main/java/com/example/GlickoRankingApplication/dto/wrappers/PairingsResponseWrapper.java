@@ -1,4 +1,4 @@
-package com.example.GlickoRankingApplication.dto.bcp;
+package com.example.GlickoRankingApplication.dto.wrappers;
 
 import com.example.GlickoRankingApplication.dto.MatchDTO;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;

@@ -1,6 +1,8 @@
 package com.example.GlickoRankingApplication.service;
 
+import com.example.GlickoRankingApplication.dto.glicko.MatchResult;
 import com.example.GlickoRankingApplication.model.Player;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -27,82 +29,42 @@ public class GlickoRatingService {
         return 1.0 / (1.0 + Math.exp(-g(phi_j) * (mu - mu_j)));
     }
 
-    public List<Player> updateRatings(Player playerA, Player playerB, int result) {
-        PlayerSnapshot snapshotA = new PlayerSnapshot(playerA);
-        PlayerSnapshot snapshotB = new PlayerSnapshot(playerB);
+    public Player updateRatingsBulk(Player player, List<MatchResult> matchResults) {
+        PlayerSnapshot snapshot = new PlayerSnapshot(player);
 
-        double scoreA = mapResultToScore(result);
-        double scoreB = 1.0 - scoreA;
+        double mu = (snapshot.rating - DEFAULT_RATING) / SCALE;
+        double phi = snapshot.rd / SCALE;
+        double sigma = snapshot.volatility;
 
-        PlayerRatingUpdate updatedA = calculateNewRating(snapshotA, snapshotB, scoreA);
-        PlayerRatingUpdate updatedB = calculateNewRating(snapshotB, snapshotA, scoreB);
+        double sumG2Et1Et = 0.0;
+        double sumGScoreMinusE = 0.0;
 
-        applyRatingUpdate(playerA, updatedA);
-        applyRatingUpdate(playerB, updatedB);
+        for (MatchResult match : matchResults) {
+            PlayerSnapshot opponent = new PlayerSnapshot(match.getOpponent());
+            double mu_j = (opponent.rating - DEFAULT_RATING) / SCALE;
+            double phi_j = opponent.rd / SCALE;
+            double score = mapScore(match.getScore()); // 1.0 = win, 0.5 = draw, 0.0 = loss
 
-        return List.of(playerA, playerB); // <- devolvemos los dos players actualizados
-    }
+            double g = g(phi_j);
+            double E = E(mu, mu_j, phi_j);
 
-    private static class PlayerSnapshot {
-        double rating;
-        double rd;
-        double volatility;
-
-        public PlayerSnapshot(Player player) {
-            this.rating = player.getRating();
-            this.rd = player.getRd();
-            this.volatility = player.getVolatility();
+            sumG2Et1Et += g * g * E * (1 - E);
+            sumGScoreMinusE += g * (score - E);
         }
-    }
 
-    private double mapResultToScore(int result) {
-        return switch (result) {
-            case 2 -> 1.0; // victoria
-            case 1 -> 0.5; // empate
-            case 0 -> 0.0; // derrota
-            default -> throw new IllegalArgumentException("Invalid result: " + result);
-        };
-    }
-
-    private static class PlayerRatingUpdate {
-        double newRating;
-        double newRd;
-        double newVolatility;
-
-        public PlayerRatingUpdate(double newRating, double newRd, double newVolatility) {
-            this.newRating = newRating;
-            this.newRd = newRd;
-            this.newVolatility = newVolatility;
+        if (matchResults.isEmpty()) {
+            applyRatingDecay(player);
+            return player;
         }
-    }
 
-    private double f(double x, double delta, double phi, double v, double a) {
-        double ex = Math.exp(x);
-        double num = ex * (delta * delta - phi * phi - v - ex);
-        double den = 2.0 * Math.pow(phi * phi + v + ex, 2);
-        return num / den - (x - a) / (TAU * TAU);
-    }
-
-    private PlayerRatingUpdate calculateNewRating(PlayerSnapshot player, PlayerSnapshot opponent, double score) {
-        double mu = (player.rating - DEFAULT_RATING) / SCALE;
-        double phi = player.rd / SCALE;
-        double sigma = player.volatility;
-
-        double mu_j = (opponent.rating - DEFAULT_RATING) / SCALE;
-        double phi_j = opponent.rd / SCALE;
-
-        double g = g(phi_j);
-        double E = E(mu, mu_j, phi_j);
-
-        double v = 1.0 / (g * g * E * (1 - E));
-        double delta = v * g * (score - E);
+        double v = 1.0 / sumG2Et1Et;
+        double delta = v * sumGScoreMinusE;
 
         double a = Math.log(sigma * sigma);
         double A = a;
         double B;
-
-        if (Math.pow(delta, 2) > phi * phi + v) {
-            B = Math.log(Math.pow(delta, 2) - phi * phi - v);
+        if (delta * delta > phi * phi + v) {
+            B = Math.log(delta * delta - phi * phi - v);
         } else {
             double k = 1;
             while (f(a - k * TAU, delta, phi, v, a) < 0) {
@@ -131,22 +93,20 @@ public class GlickoRatingService {
         double sigmaPrime = Math.exp(A / 2);
         double phiStar = Math.sqrt(phi * phi + sigmaPrime * sigmaPrime);
         double phiPrime = 1.0 / Math.sqrt(1.0 / (phiStar * phiStar) + 1.0 / v);
-        double muPrime = mu + phiPrime * phiPrime * g * (score - E);
+        double muPrime = mu + phiPrime * phiPrime * sumGScoreMinusE;
 
         double newRating = muPrime * SCALE + DEFAULT_RATING;
         double newRd = phiPrime * SCALE;
 
-        return new PlayerRatingUpdate(newRating, newRd, sigmaPrime);
+        player.setRating(newRating);
+        player.setRd(capRatingDeviation(newRd));
+        player.setVolatility(sigmaPrime);
+
+        return player;
+
     }
 
-
-    private void applyRatingUpdate(Player player, PlayerRatingUpdate update) {
-        player.setRating(update.newRating);
-        player.setRd(update.newRd);
-        player.setVolatility(update.newVolatility);
-    }
-
-
+    // Método auxiliar para aplicar la decadencia en el rating (RD) cuando un jugador ha estado inactivo
     public void applyRatingDecay(Player player) {
         if(player.getLastMatchDate() == null) {
             player.setLastMatchDate(LocalDateTime.now());
@@ -161,5 +121,55 @@ public class GlickoRatingService {
 
             player.setRd(newRD);
         }
+    }
+
+    // Método para limitar el valor de RD dentro de un rango
+    private double capRatingDeviation(double rd) {
+        double minRD = 30.0;
+        double maxRD = 350.0;
+        if (rd < minRD) return minRD;
+        if (rd > maxRD) return maxRD;
+        return rd;
+    }
+
+    private double f(double x, double delta, double phi, double v, double a) {
+        double ex = Math.exp(x);
+        double num = ex * (delta * delta - phi * phi - v - ex);
+        double den = 2.0 * Math.pow(phi * phi + v + ex, 2);
+        return num / den - (x - a) / (TAU * TAU);
+    }
+
+    @Data
+    private static class PlayerRatingUpdate {
+        private double newRating;
+        private double newRd;
+        private double newVolatility;
+
+        public PlayerRatingUpdate(double newRating, double newRd, double newVolatility) {
+            this.newRating = newRating;
+            this.newRd = newRd;
+            this.newVolatility = newVolatility;
+        }
+    }
+
+    private static class PlayerSnapshot {
+        double rating;
+        double rd;
+        double volatility;
+
+        public PlayerSnapshot(Player player) {
+            this.rating = player.getRating();
+            this.rd = player.getRd();
+            this.volatility = player.getVolatility();
+        }
+    }
+
+    private double mapScore(int score) {
+        return switch (score) {  // suponiendo que MatchResult tiene un tipo de resultado
+            case 2 -> 1.0;
+            case 1 -> 0.5;
+            case 0 -> 0.0;
+            default -> throw new IllegalArgumentException("Tipo de resultado desconocido: " + score);
+        };
     }
 }

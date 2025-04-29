@@ -6,3 +6,7 @@ spring:
 bcp:
   username: "kanarias.open@gmail.com"
   password: "Tito&2026"
+auth:
+  secret: "maja-13-10-22-123654789--aeldari-emperor-tau-drukhari-necron"
+  username: "ADMIN"
+  password: "1234"

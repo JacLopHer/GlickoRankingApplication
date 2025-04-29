@@ -1,5 +1,6 @@
 package com.example.GlickoRankingApplication;
 
+import com.example.GlickoRankingApplication.config.AuthConfig;
 import com.example.GlickoRankingApplication.config.BcpProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -9,7 +10,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableConfigurationProperties(BcpProperties.class)
+@EnableConfigurationProperties({BcpProperties.class, AuthConfig.class})
 @EnableMongoRepositories(basePackages = "com.example.GlickoRankingApplication.repository")
 @EntityScan(basePackages = "com.example.GlickoRankingApplication.model")
 @EnableScheduling

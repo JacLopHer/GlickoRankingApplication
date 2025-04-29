@@ -1,5 +1,8 @@
 package com.example.GlickoRankingApplication.enums;
 
+import lombok.Getter;
+
+@Getter
 public enum Faction {
     CHAOS("Chaos"),
     SPACE_WOLVES("Space Wolves"),
@@ -34,6 +37,7 @@ public enum Faction {
     XENOS("Xenos"),
     IMPERIAL_AGENTS("Imperial Agents");
 
+    // Método para obtener el valor
     private final String displayName;
 
     // Constructor para asignar el valor al enum
@@ -41,9 +45,5 @@ public enum Faction {
         this.displayName = displayName;
     }
 
-    // Método para obtener el valor
-    public String getDisplayName() {
-        return displayName;
-    }
 }
 

@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("api/players")
+@RequestMapping("api")
 @CrossOrigin(origins = "http://localhost:5173")
 @Slf4j
 public class PlayerController {
@@ -24,7 +24,7 @@ public class PlayerController {
      * @param eventId
      * @return List<Player> list of players
      */
-    @PostMapping()
+    @PostMapping("/private/players")
     public ResponseEntity<List<PlayerDTO>> createPlayers(@RequestParam String eventId) {
         if(!eventId.isEmpty()){
             playerService.createPlayersFromBCP(eventId);
@@ -37,7 +37,7 @@ public class PlayerController {
      * Retrieves all players
      * @return List<PlayerDTO> List of players
      */
-    @GetMapping
+    @GetMapping("public/players")
     public List<PlayerDTO> getAllPlayers() {
         return playerService.getAllPlayers();
     }
@@ -47,7 +47,7 @@ public class PlayerController {
      * Deletes all players from the database.
      * @return ResponseEntity
      */
-    @DeleteMapping("/delete")
+    @DeleteMapping("/private/players/delete")
     public ResponseEntity<String> deleteAllPlayers(){
         try{
             playerService.removeAllPlayers();
@@ -62,7 +62,7 @@ public class PlayerController {
      * Deletes a players from the database.
      * @return ResponseEntity
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/private/{id}")
     public ResponseEntity<String> deletePlayer(@PathVariable String id){
         try{
             playerService.removePlayerById(id);
