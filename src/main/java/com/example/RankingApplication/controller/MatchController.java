@@ -1,16 +1,20 @@
 package com.example.RankingApplication.controller;
 
+import com.example.RankingApplication.dto.MatchDTO;
 import com.example.RankingApplication.model.Match;
 import com.example.RankingApplication.service.MatchService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/private/matches")
+@RequestMapping("/api")
 @CrossOrigin(origins = "http://localhost:5173")
+@Slf4j
 public class MatchController {
 
     @Autowired
@@ -21,7 +25,7 @@ public class MatchController {
         return matchService.getAllMatches();
     }
 
-    @GetMapping("/{eventId}")
+    @GetMapping("/private/matches/{eventId}")
     public ResponseEntity<String> processMatches(@PathVariable String eventId){
         if(eventId.isEmpty()){
             return  ResponseEntity.badRequest().body("Cannot process empty eventId");
@@ -30,9 +34,25 @@ public class MatchController {
         return ResponseEntity.ok("Matches processed successfully");
     }
 
-    @DeleteMapping()
+    @DeleteMapping("/private/matches")
     public ResponseEntity<String> deleteAllMatches(){
         matchService.deleteAllMatches();
         return ResponseEntity.ok("Removed all matches");
+    }
+
+    /**
+     * Retrieves the matches from a player
+     * @return ResponseEntity<String>
+     */
+    @GetMapping("/public/matches/players/{playerId}")
+    public ResponseEntity<List<MatchDTO>> getPlayerMatches(@PathVariable String playerId){
+        List<MatchDTO> matchDTOS = new ArrayList<>();
+        try{
+           matchDTOS = matchService.getMatchesByPlayerId(playerId);
+        }catch (Exception e){
+            log.info("error retrieve player matches");
+            return ResponseEntity.internalServerError().build();
+        }
+        return ResponseEntity.ok().body(matchDTOS);
     }
 }

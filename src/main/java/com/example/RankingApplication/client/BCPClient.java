@@ -1,12 +1,12 @@
-package com.example.RankingApplication.clients;
+package com.example.RankingApplication.client;
 
 import com.example.RankingApplication.config.BcpProperties;
 import com.example.RankingApplication.dto.MatchDTO;
 import com.example.RankingApplication.dto.bcp.EventDTO;
+import com.example.RankingApplication.dto.bcp.PlayerPlayer;
 import com.example.RankingApplication.dto.wrappers.PairingsResponseWrapper;
 import com.example.RankingApplication.dto.wrappers.PlacingsResponseWrapper;
-import com.example.RankingApplication.dto.bcp.PlayerPlayer;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Objects;
 
 @Component
+@Slf4j
 public class BCPClient {
 
     private final WebClient webClient;
@@ -58,7 +59,7 @@ public class BCPClient {
                 .retrieve()
                 .bodyToMono(EventDTO.class)
                 .map(EventDTO::numberOfRounds) // Asumiendo que Event tiene un método getRounds que devuelve el número de rondas
-                .doOnTerminate(() -> System.out.println("Request completed"))
+                .doOnTerminate(() -> log.info("Request completed"))
                 .block(); // block para esperar la respuesta de manera sincrónica
     }
 
@@ -81,8 +82,6 @@ public class BCPClient {
     public List<PlayerPlayer> getPlayers(String eventId) {
         authenticate();
 
-        ObjectMapper objectMapper = new ObjectMapper();
-
         // Usamos exchange() para mayor control sobre la respuesta
         List<PlayerPlayer> response = webClient.get()
                 .uri("/events/{eventId}/players?placings=true", eventId)
@@ -90,7 +89,7 @@ public class BCPClient {
                 .retrieve()
                 .bodyToMono(PlacingsResponseWrapper.class)
                 .map(PlacingsResponseWrapper::getActive)
-                .doOnTerminate(() -> System.out.println("Request Get Players from BCP completed"))
+                .doOnTerminate(() -> log.info("Request Get Players from BCP completed"))
                 .block();  // Esto bloquea y obtiene la respuesta
 
         assert response != null;
@@ -100,9 +99,5 @@ public class BCPClient {
     // Clases auxiliares
     private record AuthRequest(String username, String password) {}
 
-    private record AuthResponse(String accessToken) {
-        public String accessToken() {
-            return accessToken;  // Solo devolvemos el accessToken
-        }
-    }
+    private record AuthResponse(String accessToken) { }
 }

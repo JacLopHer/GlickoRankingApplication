@@ -1,6 +1,6 @@
 package com.example.RankingApplication.service;
 
-import com.example.RankingApplication.clients.BCPClient;
+import com.example.RankingApplication.client.BCPClient;
 import com.example.RankingApplication.dto.PlayerDTO;
 import com.example.RankingApplication.dto.bcp.PlayerPlayer;
 import com.example.RankingApplication.enums.Faction;
@@ -32,7 +32,7 @@ public class PlayerService {
         return playerDTOS;
     }
 
-    private Faction getMostPlayedFaction(HashMap<Faction, FactionPlayed> factionsPlayed) {
+    public Faction getMostPlayedFaction(HashMap<Faction, FactionPlayed> factionsPlayed) {
         Faction mostPlayedFaction = null;
         int maxMatches = 0;
 
