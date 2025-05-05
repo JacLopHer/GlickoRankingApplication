@@ -3,6 +3,8 @@ spring:
     mongodb:
       uri: ${SPRING_DATA_MONGODB_URI}
       database: ${SPRING_DATA_MONGODB_DATABASE}
+server:
+  port: ${PORT:8080}
 
 bcp:
   username: ${BCP_USERNAME}
