@@ -1,12 +1,14 @@
 spring:
   data:
     mongodb:
-      uri: mongodb+srv://jacilopezwork:Smokione123@canaryrankings.2pa9pdt.mongodb.net/warhammerDB?retryWrites=true&w=majority&appName=canaryrankings
-      database: warhammerDB
+      uri: ${SPRING_DATA_MONGODB_URI}
+      database: ${SPRING_DATA_MONGODB_DATABASE}
+
 bcp:
-  username: "kanarias.open@gmail.com"
-  password: "Tito&2026"
+  username: ${BCP_USERNAME}
+  password: ${BCP_PASSWORD}
+
 auth:
-  secret: "maja-13-10-22-123654789--aeldari-emperor-tau-drukhari-necron"
-  username: "ADMIN"
-  password: "1234"
+  secret: ${AUTH_SECRET}
+  username: ${AUTH_USERNAME}
+  password: ${AUTH_PASSWORD}
