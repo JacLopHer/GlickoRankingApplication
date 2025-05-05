@@ -1,5 +1,5 @@
-# Usa una imagen base de Maven con OpenJDK 11
-FROM maven:3.8.6-openjdk-11 AS build
+# Usa una imagen base de Maven con OpenJDK 17 para la construcción
+FROM maven:3.8.6-openjdk-17 AS build
 
 # Define el directorio de trabajo
 WORKDIR /app
@@ -14,8 +14,8 @@ COPY . .
 # Ejecuta el comando de Maven para construir el proyecto (sin tests)
 RUN mvn clean package -DskipTests
 
-# Usar una imagen base más ligera para ejecutar la app
-FROM openjdk:11-jre-slim
+# Usar una imagen base más ligera para ejecutar la app con OpenJDK 17
+FROM openjdk:17-jre-slim
 
 # Define el directorio de trabajo en el contenedor
 WORKDIR /app
