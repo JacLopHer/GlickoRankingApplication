@@ -2,6 +2,7 @@ package com.example.RankingApplication.service;
 
 import com.example.RankingApplication.client.BCPClient;
 import com.example.RankingApplication.dto.MatchDTO;
+import com.example.RankingApplication.dto.bcp.PlayerPairing;
 import com.example.RankingApplication.dto.glicko.MatchResult;
 import com.example.RankingApplication.enums.Faction;
 import com.example.RankingApplication.exceptions.PlayerNotFoundException;
@@ -44,6 +45,14 @@ public class MatchService {
     @Autowired
     private BCPClient bcpClient;
 
+
+    public List<MatchDTO> getMatchesByPlayerId(String playerId) {
+        List<Match> matches = matchRepository.findByPlayerAIdOrPlayerBId(playerId, playerId);
+
+        return matches.stream()
+                .map(match -> toDTO(match, playerId))
+                .toList();
+    }
 
     private Faction getFactionFromDisplay(String displayName){
         for(Faction faction: Faction.values()){
@@ -97,6 +106,8 @@ public class MatchService {
                         .playerB(playerB)
                         .result(matchDTO.getPlayer1Game().getResult())
                         .date(LocalDateTime.now())
+                        .playerAFaction(matchDTO.getPlayer1().getFaction())
+                        .playerBFaction(matchDTO.getPlayer2().getFaction())
                         .build();
                 matchesToSave.add(match);
 
@@ -146,4 +157,60 @@ public class MatchService {
     @Transactional
     public void saveMatch(Match match) { matchRepository.save(match); }
 
+
+
+    private MatchDTO toDTO(Match match, String playerId) {
+        Player playerA = match.getPlayerA();
+        Player playerB = match.getPlayerB();
+
+        boolean isPlayerA = playerA.getId().equals(playerId);
+
+        PlayerPairing player1 = toPlayerPairing(isPlayerA ? playerA : playerB);
+        PlayerPairing player2 = toPlayerPairing(isPlayerA ? playerB : playerA);
+
+        MatchDTO.Player1Game player1Game = new MatchDTO.Player1Game();
+        MatchDTO.Player1Game player2Game = new MatchDTO.Player1Game();
+
+        double result = match.getResult(); // 1.0 (A win), 0.0 (B win), 0.5 (draw)
+
+        if (result == 0.5) {
+            player1Game.setResult(0);
+            player2Game.setResult(0);
+        } else if ((result == 1.0 && isPlayerA) || (result == 0.0 && !isPlayerA)) {
+            player1Game.setResult(1); // win
+            player2Game.setResult(-1); // loss
+        } else {
+            player1Game.setResult(-1); // loss
+            player2Game.setResult(1); // win
+        }
+
+        // Aquí puedes mapear los puntos si los tienes. Por ahora los dejamos en 0.
+        player1Game.setPoints(0);
+        player2Game.setPoints(0);
+
+        MatchDTO dto = new MatchDTO();
+        dto.setPlayer1(player1);
+        dto.setPlayer2(player2);
+        dto.setPlayer1Game(player1Game);
+        dto.setPlayer2Game(player2Game);
+        return dto;
+    }
+
+    private PlayerPairing toPlayerPairing(Player player) {
+        PlayerPairing pairing = new PlayerPairing();
+        PlayerPairing.User user = new PlayerPairing.User();
+
+        user.setId(player.getId());
+        user.setFirstName(player.getName()); // Asumimos que solo hay un campo de nombre
+        user.setLastName(""); // Si tienes un apellido, agrégalo aquí
+
+        pairing.setUser(user);
+        pairing.setFaction(
+                player.getFactionsPlayed() != null && !player.getFactionsPlayed().isEmpty()
+                        ? player.getFactionsPlayed().keySet().iterator().next().getDisplayName()
+                        : "Unknown"
+        );
+
+        return pairing;
+    }
 }

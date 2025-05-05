@@ -24,5 +24,7 @@ public class Match {
 
     private LocalDateTime date;
 
+    private String playerAFaction;
+    private String playerBFaction;
 
 }
