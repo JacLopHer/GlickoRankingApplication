@@ -1,5 +1,5 @@
 # Usa una imagen base de Maven con OpenJDK 17 para la construcción
-FROM maven:3.8.6-openjdk-17 AS build
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 
 # Define el directorio de trabajo
 WORKDIR /app
@@ -15,7 +15,7 @@ COPY . .
 RUN mvn clean package -DskipTests
 
 # Usar una imagen base más ligera para ejecutar la app con OpenJDK 17
-FROM openjdk:17-jre-slim
+FROM eclipse-temurin:17-jre
 
 # Define el directorio de trabajo en el contenedor
 WORKDIR /app
