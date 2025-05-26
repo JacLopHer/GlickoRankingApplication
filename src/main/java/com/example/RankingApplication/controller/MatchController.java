@@ -30,8 +30,10 @@ public class MatchController {
         if(eventId.isEmpty()){
             return  ResponseEntity.badRequest().body("Cannot process empty eventId");
         }
-        matchService.bulkMatches(eventId);
-        return ResponseEntity.ok("Matches processed successfully");
+        boolean bulkedMatches = matchService.bulkMatches(eventId);
+        return bulkedMatches ?
+                ResponseEntity.ok("Matches processed successfully") :
+                ResponseEntity.badRequest().body("Tournament already processed");
     }
 
     @DeleteMapping("/private/matches")

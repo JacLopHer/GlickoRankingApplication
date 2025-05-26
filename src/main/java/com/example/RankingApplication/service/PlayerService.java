@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -27,12 +26,11 @@ public class PlayerService {
 
     public List<PlayerDTO> getAllPlayers() {
         List<Player> players = playerRepository.findAll();
-        List<PlayerDTO> playerDTOS = players.stream()
+        return players.stream()
                 .map(player -> new PlayerDTO(player.getId(),player.getName(), player.getRating(), player.getFactionsPlayed() != null ? getMostPlayedFaction(player.getFactionsPlayed()).getDisplayName() : null, player.getMatchCount())).toList();
-        return playerDTOS;
     }
 
-    public Faction getMostPlayedFaction(HashMap<Faction, FactionPlayed> factionsPlayed) {
+    public Faction getMostPlayedFaction(Map<Faction, FactionPlayed> factionsPlayed) {
         Faction mostPlayedFaction = null;
         int maxMatches = 0;
 

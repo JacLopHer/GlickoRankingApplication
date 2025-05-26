@@ -43,6 +43,9 @@ public class MatchService {
     private PlayerService playerService;
 
     @Autowired
+    private TournamentService tournamentService;
+
+    @Autowired
     private BCPClient bcpClient;
 
 
@@ -80,68 +83,71 @@ public class MatchService {
 
 
     @Transactional
-    public void bulkMatches(String eventId) {
-        List<String> failedMatches = new ArrayList<>();
-        log.info("Starting to get matches for event : {}", eventId);
-        int numberOfRounds = bcpClient.getNumberOfRounds(eventId);
-        int numberOfMatches = 0;
+    public boolean bulkMatches(String eventId) {
+        if(tournamentService.saveTournament(eventId)) {
+            log.info("Starting to get matches for event : {}", eventId);
+            int numberOfRounds = bcpClient.getNumberOfRounds(eventId);
+            int numberOfMatches = 0;
 
-        playerService.createPlayersFromBCP(eventId);
+            playerService.createPlayersFromBCP(eventId);
 
-        List<Match> matchesToSave = new ArrayList<>();
-        Map<Player, List<MatchResult>> matchResultsMap = new HashMap<>();
+            List<Match> matchesToSave = new ArrayList<>();
+            Map<Player, List<MatchResult>> matchResultsMap = new HashMap<>();
 
-        for (int i = 1; i <= numberOfRounds; i++) {
-            List<MatchDTO> matchDTOS = bcpClient.getPairings(eventId, i);
-            for (MatchDTO matchDTO : matchDTOS) {
-                // Buscar jugadores de la base de datos
-                Player playerA = playerRepository.findById(matchDTO.getPlayer1().getUser().getId())
-                        .orElseThrow(() -> new PlayerNotFoundException(matchDTO.getPlayer1().getUser().getId() + " not found"));
-                Player playerB = playerRepository.findById(matchDTO.getPlayer2().getUser().getId())
-                        .orElseThrow(() -> new PlayerNotFoundException(matchDTO.getPlayer2().getUser().getId() + " not found"));
+            for (int i = 1; i <= numberOfRounds; i++) {
+                List<MatchDTO> matchDTOS = bcpClient.getPairings(eventId, i);
+                for (MatchDTO matchDTO : matchDTOS) {
+                    // Buscar jugadores de la base de datos
+                    Player playerA = playerRepository.findById(matchDTO.getPlayer1().getUser().getId())
+                            .orElseThrow(() -> new PlayerNotFoundException(matchDTO.getPlayer1().getUser().getId() + " not found"));
+                    Player playerB = playerRepository.findById(matchDTO.getPlayer2().getUser().getId())
+                            .orElseThrow(() -> new PlayerNotFoundException(matchDTO.getPlayer2().getUser().getId() + " not found"));
 
-                // Crear el objeto Match
-                Match match = Match.builder()
-                        .playerA(playerA)
-                        .playerB(playerB)
-                        .result(matchDTO.getPlayer1Game().getResult())
-                        .date(LocalDateTime.now())
-                        .playerAFaction(matchDTO.getPlayer1().getFaction())
-                        .playerBFaction(matchDTO.getPlayer2().getFaction())
-                        .build();
-                matchesToSave.add(match);
+                    // Crear el objeto Match
+                    Match match = Match.builder()
+                            .playerA(playerA)
+                            .playerB(playerB)
+                            .result(matchDTO.getPlayer1Game().getResult())
+                            .date(LocalDateTime.now())
+                            .playerAFaction(matchDTO.getPlayer1().getFaction())
+                            .playerBFaction(matchDTO.getPlayer2().getFaction())
+                            .build();
+                    matchesToSave.add(match);
 
-                Faction faction1 = getFactionFromDisplay(matchDTO.getPlayer1().getFaction());
-                Faction faction2 = getFactionFromDisplay(matchDTO.getPlayer2().getFaction());
+                    Faction faction1 = getFactionFromDisplay(matchDTO.getPlayer1().getFaction());
+                    Faction faction2 = getFactionFromDisplay(matchDTO.getPlayer2().getFaction());
 
-                // Crear MatchResult para cada jugador
-                MatchResult resultA = new MatchResult(playerA, matchDTO.getPlayer1Game().getResult(),faction1);
-                MatchResult resultB = new MatchResult(playerB, matchDTO.getPlayer2Game().getResult(),faction2);
+                    // Crear MatchResult para cada jugador
+                    MatchResult resultA = new MatchResult(playerA, matchDTO.getPlayer1Game().getResult(), faction1);
+                    MatchResult resultB = new MatchResult(playerB, matchDTO.getPlayer2Game().getResult(), faction2);
 
-                // Acumular los resultados para cada jugador
-                matchResultsMap.computeIfAbsent(playerA, k -> new ArrayList<>()).add(resultA);
-                matchResultsMap.computeIfAbsent(playerB, k -> new ArrayList<>()).add(resultB);
+                    // Acumular los resultados para cada jugador
+                    matchResultsMap.computeIfAbsent(playerA, k -> new ArrayList<>()).add(resultA);
+                    matchResultsMap.computeIfAbsent(playerB, k -> new ArrayList<>()).add(resultB);
 
-                numberOfMatches++;
+                    numberOfMatches++;
+                }
             }
-        }
 
-        // Guardar todas las partidas al final del proceso
-        if (!matchesToSave.isEmpty()) {
-            matchRepository.saveAll(matchesToSave);
-        }
+            // Guardar todas las partidas al final del proceso
+            if (!matchesToSave.isEmpty()) {
+                matchRepository.saveAll(matchesToSave);
+            }
 
-        // Procesar los jugadores y sus resultados de partidos en batch
-        for (Map.Entry<Player, List<MatchResult>> entry : matchResultsMap.entrySet()) {
-            Player player = entry.getKey();
-            List<MatchResult> matchResults = entry.getValue();
-            player.setMatchCount(player.getMatchCount() + matchResults.size());
-            player = updateFactionPlayed(player, matchResults.get(0).getFaction(), matchResults.size());
-            player = glickoRatingService.updateRatingsBulk(player, matchResults);
-            playerRepository.save(player);
-        }
+            // Procesar los jugadores y sus resultados de partidos en batch
+            for (Map.Entry<Player, List<MatchResult>> entry : matchResultsMap.entrySet()) {
+                Player player = entry.getKey();
+                List<MatchResult> matchResults = entry.getValue();
+                player.setMatchCount(player.getMatchCount() + matchResults.size());
+                player = updateFactionPlayed(player, matchResults.get(0).getFaction(), matchResults.size());
+                player = glickoRatingService.updateRatingsBulk(player, matchResults);
+                playerRepository.save(player);
+            }
 
-        log.info("All matches processed successfully: {} matches and {} rounds", numberOfMatches, numberOfRounds);
+            log.info("All matches processed successfully: {} matches and {} rounds", numberOfMatches, numberOfRounds);
+           return true;
+        }
+        return false;
     }
 
     public void deleteAllMatches (){
