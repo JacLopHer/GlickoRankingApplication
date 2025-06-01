@@ -43,6 +43,9 @@ public class GlickoRatingService {
             double phi_j = opponent.rd / SCALE;
             double score = mapScore(match.getScore()); // 1.0 = win, 0.5 = draw, 0.0 = loss
 
+            if(score == 1){
+                player.setMatchesWon(player.getMatchesWon() + 1);
+            }
             double g = g(phi_j);
             double E = E(mu, mu_j, phi_j);
 
@@ -103,6 +106,7 @@ public class GlickoRatingService {
         return player;
 
     }
+
 
     // Método auxiliar para aplicar la decadencia en el rating (RD) cuando un jugador ha estado inactivo
     public void applyRatingDecay(Player player) {

@@ -59,7 +59,7 @@ public class MatchService {
 
     private Faction getFactionFromDisplay(String displayName){
         for(Faction faction: Faction.values()){
-            if(faction.getDisplayName().equalsIgnoreCase(displayName)){
+            if( faction.getDisplayName().equalsIgnoreCase(displayName)){
                 return faction;
             }
         }
