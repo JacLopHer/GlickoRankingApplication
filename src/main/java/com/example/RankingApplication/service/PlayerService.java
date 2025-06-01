@@ -27,7 +27,7 @@ public class PlayerService {
     public List<PlayerDTO> getAllPlayers() {
         List<Player> players = playerRepository.findAll();
         return players.stream()
-                .map(player -> new PlayerDTO(player.getId(),player.getName(), player.getRating(), player.getFactionsPlayed() != null ? getMostPlayedFaction(player.getFactionsPlayed()).getDisplayName() : null, player.getMatchCount())).toList();
+                .map(player -> new PlayerDTO(player.getId(),player.getName(), player.getRating(), player.getFactionsPlayed() != null ? getMostPlayedFaction(player.getFactionsPlayed()).getDisplayName() : null, player.getMatchCount(), player.getMatchesWon())).toList();
     }
 
     public Faction getMostPlayedFaction(Map<Faction, FactionPlayed> factionsPlayed) {

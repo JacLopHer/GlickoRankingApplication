@@ -29,7 +29,7 @@ public class Player {
 
     private LocalDateTime lastMatchDate = LocalDateTime.now();
     private int matchCount = 0;
-    private double matchesWon = 0;
+    private int matchesWon = 0;
 
     public Player(String name){
         if(name == null || name.trim().isBlank()){
