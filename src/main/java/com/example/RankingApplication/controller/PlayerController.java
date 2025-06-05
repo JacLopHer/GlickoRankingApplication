@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("api")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "https://daafgo.github.io"})
 @Slf4j
 public class PlayerController {
     private final PlayerService playerService;
