@@ -6,6 +6,7 @@ import com.example.RankingApplication.dto.bcp.EventDTO;
 import com.example.RankingApplication.dto.bcp.PlayerPlayer;
 import com.example.RankingApplication.dto.wrappers.PairingsResponseWrapper;
 import com.example.RankingApplication.dto.wrappers.PlacingsResponseWrapper;
+import com.example.RankingApplication.exceptions.BCPClientException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -44,23 +45,27 @@ public class BCPClient {
                     .bodyToMono(AuthResponse.class)
                     .block();
 
-            assert response != null;
+            if (response == null) {
+                throw new BCPClientException("Authentication failed: response is null");
+            }
+
             this.authToken = response.accessToken();
         } catch (WebClientResponseException e) {
-            throw new RuntimeException("Failed to authenticate: " + e.getResponseBodyAsString(), e);
+            throw new BCPClientException("Failed to authenticate with BCP: " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            throw new BCPClientException("Unexpected error during BCP authentication", e);
         }
     }
 
-    public Integer getNumberOfRounds(String eventId) {
+    public EventDTO getEvent(String eventId) {
         authenticate();
         return webClient.get()
-                .uri("/events/{eventId}", eventId)
+                .uri("/events/{eventId}/overview", eventId)
                 .headers(headers -> headers.setBearerAuth(authToken))
                 .retrieve()
                 .bodyToMono(EventDTO.class)
-                .map(EventDTO::numberOfRounds) // Asumiendo que Event tiene un método getRounds que devuelve el número de rondas
-                .doOnTerminate(() -> log.info("Request completed"))
-                .block(); // block para esperar la respuesta de manera sincrónica
+                .doOnTerminate(() -> log.info("Fetched event {}", eventId))
+                .block();
     }
 
     public List<MatchDTO> getPairings(String eventId, int round) {

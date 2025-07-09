@@ -41,8 +41,8 @@ public class PlayerController {
      * @return List<PlayerDTO> List of players
      */
     @GetMapping("public/players")
-    public List<PlayerDTO> getAllPlayers() {
-        return playerService.getAllPlayers();
+    public List<PlayerDTO> getAllPlayers(@RequestParam int gameSystemCode) {
+        return playerService.getAllPlayers(gameSystemCode);
     }
 
 
@@ -51,9 +51,9 @@ public class PlayerController {
      * @return ResponseEntity
      */
     @DeleteMapping("/private/players/delete")
-    public ResponseEntity<String> deleteAllPlayers(){
+    public ResponseEntity<String> deleteAllPlayers(@RequestParam int gameSystemCode){
         try{
-            playerService.removeAllPlayers();
+            playerService.removeAllPlayers(gameSystemCode);
         } catch (Exception e){
             log.info("error");
             return ResponseEntity.internalServerError().build();
@@ -66,9 +66,9 @@ public class PlayerController {
      * @return ResponseEntity
      */
     @DeleteMapping("/private/{id}")
-    public ResponseEntity<String> deletePlayer(@PathVariable String id){
+    public ResponseEntity<String> deletePlayer(@PathVariable String id, @RequestParam int gameSystemCode){
         try{
-            playerService.removePlayerById(id);
+            playerService.removePlayerById(id,gameSystemCode);
         } catch (Exception e){
             log.info("error");
             return ResponseEntity.internalServerError().build();
@@ -77,7 +77,13 @@ public class PlayerController {
     }
 
     @PostMapping("/private/players/decay")
-    public List<Player> applyDecay() {
-        return decayService.applyDecayToInactivePlayers();
+    public ResponseEntity<List<Player>> applyDecay(@RequestParam int gameSystemCode) {
+        try{
+            List<Player> response = decayService.applyDecayToInactivePlayers(gameSystemCode);
+            return ResponseEntity.ok(response);
+        } catch (Exception e){
+            log.info("error when decaying players");
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

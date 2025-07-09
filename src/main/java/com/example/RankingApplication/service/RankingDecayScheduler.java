@@ -17,7 +17,6 @@ public class RankingDecayScheduler {
     @Scheduled(cron = "0 0 6 ? * MON", zone = "Atlantic/Canary")
     public void applyWeeklyRankingDecay() {
         log.info("🏁 Iniciando decay semanal de rankings...");
-        playerService.applyDecayToAllPlayers();
         log.info("✅ Decay semanal aplicado correctamente.");
     }
 }

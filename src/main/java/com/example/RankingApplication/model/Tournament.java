@@ -14,4 +14,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(collection = "tournaments")
 public class Tournament {
     String id;
+    String name;
+    String tournamentType;
+    Integer tournamentTypeCode;
+    Integer numberOfRounds;
 }
