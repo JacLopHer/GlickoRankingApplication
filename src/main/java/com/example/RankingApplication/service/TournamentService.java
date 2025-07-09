@@ -1,22 +1,23 @@
 package com.example.RankingApplication.service;
 
+import com.example.RankingApplication.dto.bcp.EventDTO;
 import com.example.RankingApplication.model.Tournament;
 import com.example.RankingApplication.repository.TournamentRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class TournamentService {
 
-    @Autowired
-    private  TournamentRepository tournamentRepository;
+    private final TournamentRepository tournamentRepository;
 
-    public boolean saveTournament(String tournamentId){
-        if (tournamentId == null || tournamentId.isBlank()) {
+    public boolean saveTournament(EventDTO eventDTO, String tournamentId){
+        if (eventDTO == null) {
             log.error("No tournament ID provided");
             return false;
         }
@@ -26,7 +27,11 @@ public class TournamentService {
             return false;
         }
 
-        Tournament tournament = new Tournament(tournamentId);
+        Tournament tournament = new Tournament(tournamentId,
+                eventDTO.name(),
+                eventDTO.gameSystem().name(),
+                eventDTO.gameSystem().code(),
+                eventDTO.status().numberOfRounds());
 
         try {
             tournamentRepository.save(tournament);

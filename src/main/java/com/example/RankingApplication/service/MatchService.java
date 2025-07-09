@@ -2,6 +2,7 @@ package com.example.RankingApplication.service;
 
 import com.example.RankingApplication.client.BCPClient;
 import com.example.RankingApplication.dto.MatchDTO;
+import com.example.RankingApplication.dto.bcp.EventDTO;
 import com.example.RankingApplication.dto.bcp.PlayerPairing;
 import com.example.RankingApplication.dto.glicko.MatchResult;
 import com.example.RankingApplication.enums.Faction;
@@ -9,9 +10,10 @@ import com.example.RankingApplication.exceptions.PlayerNotFoundException;
 import com.example.RankingApplication.model.FactionPlayed;
 import com.example.RankingApplication.model.Match;
 import com.example.RankingApplication.model.Player;
+import com.example.RankingApplication.model.PlayerClassResolver;
 import com.example.RankingApplication.repository.FactionPlayedRepository;
 import com.example.RankingApplication.repository.MatchRepository;
-import com.example.RankingApplication.repository.PlayerRepository;
+import com.example.RankingApplication.repository.PlayerRepositoryCustom;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,7 +26,7 @@ import java.util.*;
 @AllArgsConstructor
 public class MatchService {
 
-    private final PlayerRepository playerRepository;
+    private final PlayerRepositoryCustom<Player> playerRepository;
     private final MatchRepository matchRepository;
     private final GlickoRatingService glickoRatingService;
     private final FactionPlayedRepository factionPlayedRepository;
@@ -67,10 +69,13 @@ public class MatchService {
 
 
     @Transactional
-    public boolean bulkMatches(String eventId) {
-        if(tournamentService.saveTournament(eventId)) {
+    public boolean bulkMatches(String eventId) throws Throwable {
+        EventDTO eventDTO = bcpClient.getEvent(eventId);
+        if(eventDTO != null && tournamentService.saveTournament(eventDTO, eventId)) {
             log.info("Starting to get matches for event : {}", eventId);
-            int numberOfRounds = bcpClient.getNumberOfRounds(eventId);
+            int numberOfRounds = eventDTO.status().numberOfRounds();
+            int gameSystemCode = eventDTO.gameSystem().code();
+            Class<? extends Player> clazz = PlayerClassResolver.resolveFromGameSystemCode(gameSystemCode);
             int numberOfMatches = 0;
 
             playerService.createPlayersFromBCP(eventId);
@@ -82,9 +87,12 @@ public class MatchService {
                 List<MatchDTO> matchDTOS = bcpClient.getPairings(eventId, i);
                 for (MatchDTO matchDTO : matchDTOS) {
                     // Buscar jugadores de la base de datos
-                    Player playerA = playerRepository.findById(matchDTO.getPlayer1().getUser().getId())
+                    String playerAId = matchDTO.getPlayer1().getUser().getId();
+                    Player playerA = playerRepository.findById(playerAId, clazz)
                             .orElseThrow(() -> new PlayerNotFoundException(matchDTO.getPlayer1().getUser().getId() + " not found"));
-                    Player playerB = playerRepository.findById(matchDTO.getPlayer2().getUser().getId())
+
+                    String playerBId = matchDTO.getPlayer2().getUser().getId();
+                    Player playerB = playerRepository.findById(playerBId, clazz)
                             .orElseThrow(() -> new PlayerNotFoundException(matchDTO.getPlayer2().getUser().getId() + " not found"));
 
                     // Crear el objeto Match

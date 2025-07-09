@@ -3,8 +3,8 @@ package com.example.RankingApplication.controller;
 import com.example.RankingApplication.dto.MatchDTO;
 import com.example.RankingApplication.model.Match;
 import com.example.RankingApplication.service.MatchService;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,10 +14,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @Slf4j
+@AllArgsConstructor
 public class MatchController {
 
-    @Autowired
-    private MatchService matchService;
+    private final MatchService matchService;
 
     @GetMapping
     public List<Match> getAllMatches() {
@@ -25,7 +25,7 @@ public class MatchController {
     }
 
     @GetMapping("/private/matches/{eventId}")
-    public ResponseEntity<String> processMatches(@PathVariable String eventId){
+    public ResponseEntity<String> processMatches(@PathVariable String eventId) throws Throwable {
         if(eventId.isEmpty()){
             return  ResponseEntity.badRequest().body("Cannot process empty eventId");
         }

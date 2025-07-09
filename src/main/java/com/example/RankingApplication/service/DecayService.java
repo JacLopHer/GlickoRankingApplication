@@ -1,7 +1,8 @@
 package com.example.RankingApplication.service;
 
 import com.example.RankingApplication.model.Player;
-import com.example.RankingApplication.repository.PlayerRepository;
+import com.example.RankingApplication.model.PlayerClassResolver;
+import com.example.RankingApplication.repository.PlayerRepositoryCustom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -12,22 +13,27 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DecayService {
 
-    private final PlayerRepository playerRepository;
+    private final PlayerRepositoryCustom<Player> playerRepository;
 
-    public List<Player> applyDecayToInactivePlayers() {
+    public List<Player> applyDecayToInactivePlayers(int gameSystemCode) {
         LocalDateTime oneMonthAgo = LocalDateTime.now().minusMonths(1);
 
-        List<Player> allPlayers = playerRepository.findAll();
+        Class<? extends Player> playerClass = PlayerClassResolver.resolveFromGameSystemCode(gameSystemCode);
+        if (playerClass == null) {
+            throw new IllegalArgumentException("Unsupported game system code: " + gameSystemCode);
+        }
 
-        // Aplica 10% de decay
+        List<Player> players = playerRepository.findAll(playerClass).stream().map(Player.class::cast).toList();
 
-        return allPlayers.stream()
+        List<Player> filteredPlayers = players.stream()
                 .filter(p -> p.getLastMatchDate() != null && p.getLastMatchDate().isBefore(oneMonthAgo))
-                .map(player -> {
-                    double newRating = player.getRating() * 0.9; // Aplica 10% de decay
-                    player.setRating(newRating);
-                    return playerRepository.save(player);
-                })
                 .toList();
+
+        filteredPlayers.forEach(player -> {
+            player.setRating(player.getRating() * 0.9);
+            playerRepository.save(player);
+        });
+
+        return filteredPlayers;
     }
 }
