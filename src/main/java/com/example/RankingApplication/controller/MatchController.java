@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -25,7 +26,7 @@ public class MatchController {
     }
 
     @GetMapping("/private/matches/{eventId}")
-    public ResponseEntity<String> processMatches(@PathVariable String eventId) throws Throwable {
+    public ResponseEntity<String> processMatches(@PathVariable String eventId)  {
         if(eventId.isEmpty()){
             return  ResponseEntity.badRequest().body("Cannot process empty eventId");
         }
@@ -55,5 +56,16 @@ public class MatchController {
             return ResponseEntity.internalServerError().build();
         }
         return ResponseEntity.ok().body(matchDTOS);
+    }
+
+    @PostMapping("/private/matches/super-bulk")
+    public ResponseEntity<String> processBulkMatches(@RequestBody String[] eventIds){
+        try{
+            Arrays.stream(eventIds).forEach(matchService::bulkMatches);
+            return ResponseEntity.ok("Completado");
+        } catch (Exception e){
+            log.error("Error");
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

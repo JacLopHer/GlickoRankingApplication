@@ -26,7 +26,10 @@ public class DecayService {
         List<Player> players = playerRepository.findAll(playerClass).stream().toList();
 
         List<Player> filteredPlayers = players.stream()
-                .filter(p -> p.getLastMatchDate() != null && p.getLastMatchDate().isBefore(twoMonthsAgo))
+                .filter(p ->
+                        p.getRating() >= 1500
+                        && p.getLastMatchDate() != null
+                        && p.getLastMatchDate().isBefore(twoMonthsAgo))
                 .toList();
 
         filteredPlayers.forEach(player -> {
