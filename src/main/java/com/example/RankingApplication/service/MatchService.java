@@ -11,7 +11,6 @@ import com.example.RankingApplication.model.FactionPlayed;
 import com.example.RankingApplication.model.Match;
 import com.example.RankingApplication.model.Player;
 import com.example.RankingApplication.model.PlayerClassResolver;
-import com.example.RankingApplication.repository.FactionPlayedRepository;
 import com.example.RankingApplication.repository.MatchRepository;
 import com.example.RankingApplication.repository.PlayerRepositoryCustom;
 import lombok.AllArgsConstructor;
@@ -29,7 +28,6 @@ public class MatchService {
     private final PlayerRepositoryCustom<Player> playerRepository;
     private final MatchRepository matchRepository;
     private final GlickoRatingService glickoRatingService;
-    private final FactionPlayedRepository factionPlayedRepository;
     private final PlayerService playerService;
     private final TournamentService tournamentService;
     private final BCPClient bcpClient;
@@ -69,7 +67,7 @@ public class MatchService {
 
 
     @Transactional
-    public boolean bulkMatches(String eventId) throws Throwable {
+    public boolean bulkMatches(String eventId) {
         EventDTO eventDTO = bcpClient.getEvent(eventId);
         if(eventDTO != null && tournamentService.saveTournament(eventDTO, eventId)) {
             log.info("Starting to get matches for event : {}", eventId);
@@ -103,6 +101,7 @@ public class MatchService {
                             .date(matchDTO.getCreatedAt())
                             .playerAFaction(matchDTO.getPlayer1().getFaction())
                             .playerBFaction(matchDTO.getPlayer2().getFaction())
+                            .gameSystemCode(eventDTO.gameSystem().code())
                             .build();
                     matchesToSave.add(match);
 
@@ -131,7 +130,7 @@ public class MatchService {
                 Player player = entry.getKey();
                 List<MatchResult> matchResults = entry.getValue();
                 player.setMatchCount(player.getMatchCount() + matchResults.size());
-                player = updateFactionPlayed(player, matchResults.get(0).getFaction(), matchResults.size());
+                updateFactionPlayed(player, matchResults.get(0).getFaction(), matchResults.size());
                 player = glickoRatingService.updateRatingsBulk(player, matchResults);
                 player.setLastMatchDate(matchesToSave.get(matchesToSave.size()-1).getDate());
                 playerRepository.save(player);

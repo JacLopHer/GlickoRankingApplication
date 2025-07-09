@@ -27,4 +27,6 @@ public class Match {
     private String playerAFaction;
     private String playerBFaction;
 
+    private Integer gameSystemCode;
+
 }
