@@ -23,15 +23,18 @@ public class DecayService {
             throw new IllegalArgumentException("Unsupported game system code: " + gameSystemCode);
         }
 
-        List<Player> players = playerRepository.findAll(playerClass).stream().map(Player.class::cast).toList();
+        List<Player> players = playerRepository.findAll(playerClass).stream().toList();
 
         List<Player> filteredPlayers = players.stream()
                 .filter(p -> p.getLastMatchDate() != null && p.getLastMatchDate().isBefore(twoMonthsAgo))
                 .toList();
 
         filteredPlayers.forEach(player -> {
-            player.setRating(player.getRating() * 0.9);
-            playerRepository.save(player);
+            if (player.getRating() >= 1500) {
+                double decayedRating = player.getRating() * 0.9;
+                player.setRating(Math.max(decayedRating, 1500));
+                playerRepository.save(player);
+            }
         });
 
         return filteredPlayers;
