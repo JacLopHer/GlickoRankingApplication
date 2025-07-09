@@ -9,7 +9,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.util.EnumMap;
 
 
 @Builder
@@ -21,13 +21,13 @@ public class Player {
     @Id
     private String id;
     private String name;
-    private HashMap<Faction,FactionPlayed> factionsPlayed;
+    private EnumMap<Faction,FactionPlayed> factionsPlayed;
 
     private double rating = 1500;       // μ
     private double rd = 350;           // φ
     private double volatility = 0.06;   // σ
 
-    private LocalDateTime lastMatchDate = LocalDateTime.now();
+    private LocalDateTime lastMatchDate;
     private int matchCount = 0;
     private int matchesWon = 0;
 

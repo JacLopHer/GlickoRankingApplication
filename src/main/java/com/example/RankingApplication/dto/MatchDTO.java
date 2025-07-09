@@ -2,8 +2,12 @@ package com.example.RankingApplication.dto;
 
 
 import com.example.RankingApplication.dto.bcp.PlayerPairing;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -21,4 +25,8 @@ public class MatchDTO{
         private int points;
 
     }
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+    @JsonProperty("created_at")
+    private LocalDateTime createdAt;
 }
