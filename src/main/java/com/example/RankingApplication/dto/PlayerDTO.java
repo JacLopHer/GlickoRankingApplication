@@ -6,5 +6,7 @@ public record PlayerDTO (
     double rating,
     String mainFaction,
     int matches,
-    int matchesWon
+    int matchesWon,
+    int matchesLost,
+    double rd
 ) {}

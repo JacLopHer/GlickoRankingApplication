@@ -16,7 +16,7 @@ public class DecayService {
     private final PlayerRepositoryCustom<Player> playerRepository;
 
     public List<Player> applyDecayToInactivePlayers(int gameSystemCode) {
-        LocalDateTime oneMonthAgo = LocalDateTime.now().minusMonths(1);
+        LocalDateTime twoMonthsAgo = LocalDateTime.now().minusMonths(2);
 
         Class<? extends Player> playerClass = PlayerClassResolver.resolveFromGameSystemCode(gameSystemCode);
         if (playerClass == null) {
@@ -26,7 +26,7 @@ public class DecayService {
         List<Player> players = playerRepository.findAll(playerClass).stream().map(Player.class::cast).toList();
 
         List<Player> filteredPlayers = players.stream()
-                .filter(p -> p.getLastMatchDate() != null && p.getLastMatchDate().isBefore(oneMonthAgo))
+                .filter(p -> p.getLastMatchDate() != null && p.getLastMatchDate().isBefore(twoMonthsAgo))
                 .toList();
 
         filteredPlayers.forEach(player -> {

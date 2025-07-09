@@ -45,7 +45,10 @@ public class GlickoRatingService {
 
             if(score == 1){
                 player.setMatchesWon(player.getMatchesWon() + 1);
+            } else if( score == 0){
+                player.setMatchesLost(player.getMatchesLost() + 1);
             }
+
             double g = g(phi_j);
             double E = E(mu, mu_j, phi_j);
 

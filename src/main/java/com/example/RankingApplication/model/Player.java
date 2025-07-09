@@ -17,22 +17,15 @@ public abstract class Player {
 
     @Id
     private String id;
-
     private String name;
-
     private EnumMap<Faction, FactionPlayed> factionsPlayed = new EnumMap<>(Faction.class);
-
     private double rating = 1500.0;
-
     private double rd = 350.0;
-
     private double volatility = 0.06;
-
     private LocalDateTime lastMatchDate;
-
     private int matchCount = 0;
-
     private int matchesWon = 0;
+    private int matchesLost= 0;
 
     /**
      * Protected constructor to enforce validation when creating instances manually.

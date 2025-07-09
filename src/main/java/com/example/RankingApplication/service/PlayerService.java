@@ -37,13 +37,16 @@ public class PlayerService {
         List<Player> players = safeCastPlayers(playerRepository.findAll(clazz));
         // mapear a DTO igual que antes
         return players.stream()
+                .filter(player -> player.getMatchCount() > 0)
                 .map(player -> new PlayerDTO(
                         player.getId(),
                         player.getName(),
                         player.getRating(),
                         player.getFactionsPlayed() != null ? getMostPlayedFaction(player.getFactionsPlayed()).getDisplayName() : null,
                         player.getMatchCount(),
-                        player.getMatchesWon()))
+                        player.getMatchesWon(),
+                        player.getMatchesLost(),
+                        player.getRd()))
                 .toList();
     }
 
