@@ -1,6 +1,8 @@
 package com.example.RankingApplication.controller;
 
 import com.example.RankingApplication.dto.PlayerDTO;
+import com.example.RankingApplication.model.Player;
+import com.example.RankingApplication.service.DecayService;
 import com.example.RankingApplication.service.PlayerService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -13,14 +15,16 @@ import java.util.List;
 @Slf4j
 public class PlayerController {
     private final PlayerService playerService;
+    private final DecayService decayService;
 
-    public PlayerController(PlayerService playerService) {
+    public PlayerController(PlayerService playerService, DecayService decayService) {
         this.playerService = playerService;
+        this.decayService = decayService;
     }
 
     /**
      * Create players from an event
-     * @param eventId
+     * @param eventId event identification
      * @return List<Player> list of players
      */
     @PostMapping("/private/players")
@@ -70,5 +74,10 @@ public class PlayerController {
             return ResponseEntity.internalServerError().build();
         }
         return ResponseEntity.ok("Removed all players");
+    }
+
+    @PostMapping("/private/players/decay")
+    public List<Player> applyDecay() {
+        return decayService.applyDecayToInactivePlayers();
     }
 }

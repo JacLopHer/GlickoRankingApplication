@@ -12,41 +12,25 @@ import com.example.RankingApplication.model.Player;
 import com.example.RankingApplication.repository.FactionPlayedRepository;
 import com.example.RankingApplication.repository.MatchRepository;
 import com.example.RankingApplication.repository.PlayerRepository;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @Slf4j
+@AllArgsConstructor
 public class MatchService {
 
-    @Autowired
-    private PlayerRepository playerRepository;
-
-    @Autowired
-    private MatchRepository matchRepository;
-
-    @Autowired
-    private GlickoRatingService glickoRatingService;
-
-    @Autowired
-    private FactionPlayedRepository factionPlayedRepository;
-
-    @Autowired
-    private PlayerService playerService;
-
-    @Autowired
-    private TournamentService tournamentService;
-
-    @Autowired
-    private BCPClient bcpClient;
+    private final PlayerRepository playerRepository;
+    private final MatchRepository matchRepository;
+    private final GlickoRatingService glickoRatingService;
+    private final FactionPlayedRepository factionPlayedRepository;
+    private final PlayerService playerService;
+    private final TournamentService tournamentService;
+    private final BCPClient bcpClient;
 
 
     public List<MatchDTO> getMatchesByPlayerId(String playerId) {
@@ -68,7 +52,7 @@ public class MatchService {
 
     private Player updateFactionPlayed(Player player, Faction faction, int numberOfRounds) {
         if (player.getFactionsPlayed() == null) {
-            player.setFactionsPlayed(new HashMap<>());
+            player.setFactionsPlayed(new EnumMap<>(Faction.class));
         }
         FactionPlayed factionPlayed = player.getFactionsPlayed().get(faction);
         if (factionPlayed == null) {
@@ -108,7 +92,7 @@ public class MatchService {
                             .playerA(playerA)
                             .playerB(playerB)
                             .result(matchDTO.getPlayer1Game().getResult())
-                            .date(LocalDateTime.now())
+                            .date(matchDTO.getCreatedAt())
                             .playerAFaction(matchDTO.getPlayer1().getFaction())
                             .playerBFaction(matchDTO.getPlayer2().getFaction())
                             .build();
@@ -141,6 +125,7 @@ public class MatchService {
                 player.setMatchCount(player.getMatchCount() + matchResults.size());
                 player = updateFactionPlayed(player, matchResults.get(0).getFaction(), matchResults.size());
                 player = glickoRatingService.updateRatingsBulk(player, matchResults);
+                player.setLastMatchDate(matchesToSave.get(matchesToSave.size()-1).getDate());
                 playerRepository.save(player);
             }
 
