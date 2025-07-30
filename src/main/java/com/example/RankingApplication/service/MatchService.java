@@ -50,10 +50,20 @@ public class MatchService {
         throw new IllegalArgumentException("Faction not valid : " + displayName);
     }
 
-    private Player updateFactionPlayed(Player player, Faction faction, int numberOfRounds) {
+    private Player updateFactionPlayed(Player player, Faction faction, int numberOfRounds, int systemCode) {
+
+        if (faction == null) {
+            faction = Faction.getDefaultForSystemCode(systemCode);
+        }
+
+        if(faction.isDefault()){
+            return player;
+        }
+
         if (player.getFactionsPlayed() == null) {
             player.setFactionsPlayed(new EnumMap<>(Faction.class));
         }
+
         FactionPlayed factionPlayed = player.getFactionsPlayed().get(faction);
         if (factionPlayed == null) {
             factionPlayed = new FactionPlayed(player.getId(), faction, numberOfRounds);
@@ -130,7 +140,7 @@ public class MatchService {
                 Player player = entry.getKey();
                 List<MatchResult> matchResults = entry.getValue();
                 player.setMatchCount(player.getMatchCount() + matchResults.size());
-                updateFactionPlayed(player, matchResults.get(0).getFaction(), matchResults.size());
+                updateFactionPlayed(player, matchResults.get(0).getFaction(), matchResults.size(), gameSystemCode);
                 player = glickoRatingService.updateRatingsBulk(player, matchResults);
                 player.setLastMatchDate(matchesToSave.get(matchesToSave.size()-1).getDate());
                 playerRepository.save(player);
@@ -141,6 +151,8 @@ public class MatchService {
         }
         return false;
     }
+
+
 
     public void deleteAllMatches (){
         log.info("Deleting all matches");

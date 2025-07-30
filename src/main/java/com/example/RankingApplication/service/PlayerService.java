@@ -35,20 +35,32 @@ public class PlayerService {
         }
 
         List<Player> players = safeCastPlayers(playerRepository.findAll(clazz));
-        // mapear a DTO igual que antes
         return players.stream()
                 .filter(player -> player.getMatchCount() > 0)
-                .map(player -> new PlayerDTO(
-                        player.getId(),
-                        player.getName(),
-                        player.getRating(),
-                        player.getFactionsPlayed() != null ? getMostPlayedFaction(player.getFactionsPlayed()).getDisplayName() : null,
-                        player.getMatchCount(),
-                        player.getMatchesWon(),
-                        player.getMatchesLost(),
-                        player.getRd()))
+                .map(player -> {
+                    Map<Faction, FactionPlayed> factionsPlayed = player.getFactionsPlayed();
+
+                    Faction mostPlayedFaction;
+                    if (factionsPlayed != null && !factionsPlayed.isEmpty()) {
+                        mostPlayedFaction = getMostPlayedFaction(factionsPlayed);
+                    } else {
+                        mostPlayedFaction = getDefaultFactionForSystem(gameSystemCode);
+                    }
+
+                    return new PlayerDTO(
+                            player.getId(),
+                            player.getName(),
+                            player.getRating(),
+                            mostPlayedFaction != null ? mostPlayedFaction.getDisplayName() : null,
+                            player.getMatchCount(),
+                            player.getMatchesWon(),
+                            player.getMatchesLost(),
+                            player.getRd()
+                    );
+                })
                 .toList();
     }
+
 
     public Faction getMostPlayedFaction(Map<Faction, FactionPlayed> factionsPlayed) {
         Faction mostPlayedFaction = null;
@@ -66,6 +78,16 @@ public class PlayerService {
 
         return mostPlayedFaction;
     }
+
+    public Faction getDefaultFactionForSystem(int systemCode) {
+        return switch (systemCode) {
+            case 1 -> Faction.DEFAULT_40k;
+            case 4 -> Faction.DEFAULT_AOS;
+            case 89 -> Faction.DEFAULT_TOW;
+            default -> null;
+        };
+    }
+
 
     public void applyDecayToAllPlayers(int gameSystemCode) {
         log.info("Starting to apply decay to all players");

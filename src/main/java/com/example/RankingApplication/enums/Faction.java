@@ -4,6 +4,7 @@ import lombok.Getter;
 
 @Getter
 public enum Faction {
+
     CHAOS("Chaos", 1),
     SPACE_WOLVES("Space Wolves", 1),
     ORKS("Orks", 1),
@@ -89,7 +90,12 @@ public enum Faction {
     TROLL_HORDE("Troll Horde", 89),
     MORTUARY_CULT("Mortuary Cult", 89),
     ROYAL_HOST("Royal Host", 89),
-    WOLVES_OF_THE_SEA("Wolves of the Sea", 89);
+    WOLVES_OF_THE_SEA("Wolves of the Sea", 89),
+    CATHAY("Cathay", 89),
+
+    DEFAULT_TOW("Sin ejército", 89),
+    DEFAULT_40k("Sin ejército", 1),
+    DEFAULT_AOS("Sin ejército", 4);
     // Método para obtener el valor
     private final String displayName;
     private final int systemCode;
@@ -99,6 +105,20 @@ public enum Faction {
         this.displayName = displayName;
         this.systemCode = systemCode;
     }
+
+    public boolean isDefault() {
+        return this == DEFAULT_TOW || this == DEFAULT_40k || this == DEFAULT_AOS;
+    }
+
+    public static Faction getDefaultForSystemCode(int systemCode) {
+        return switch (systemCode) {
+            case 1 -> Faction.DEFAULT_40k;
+            case 4 -> Faction.DEFAULT_AOS;
+            case 89 -> Faction.DEFAULT_TOW;
+            default -> throw new IllegalArgumentException("Código de sistema no reconocido: " + systemCode);
+        };
+    }
+
 
 }
 

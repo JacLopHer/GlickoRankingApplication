@@ -29,7 +29,7 @@ public class PlayerRepositoryCustomImpl<T extends Player> implements PlayerRepos
 
     @Override
     public boolean existsById(String id, Class<? extends T> clazz) {
-        Query query = new Query(Criteria.where("id").is(id));
+        Query query = new Query(Criteria.where("_id").is(id));
         return mongoTemplate.exists(query, clazz);
     }
 
@@ -48,7 +48,7 @@ public class PlayerRepositoryCustomImpl<T extends Player> implements PlayerRepos
 
     @Override
     public void deleteById(String id, Class<? extends Player> clazz) {
-        Query query = new Query(Criteria.where("id").is(id));
+        Query query = new Query(Criteria.where("_id").is(id));
         mongoTemplate.remove(query, clazz);
     }
 
